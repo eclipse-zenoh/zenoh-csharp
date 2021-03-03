@@ -56,7 +56,7 @@ public class ExampleArgs
     [HelpHook, ArgShortcut("h"), ArgDescription("Shows this help")]
     public Boolean help { get; set; }
 
-    [ArgShortcut("m"), ArgDefaultValue("peer"), ArgDescription("The zenoh session mode. Possible values [peer|client].")]
+    [ArgShortcut("m"), ArgDescription("The zenoh session mode (peer by default). Possible values [peer|client].")]
     public string mode { get; set; }
 
     [ArgShortcut("e"), ArgDescription("Peer locators used to initiate the zenoh session.")]
@@ -70,19 +70,27 @@ public class ExampleArgs
 
     public Dictionary<string, string> GetConf()
     {
-        var conf = new Dictionary<string, string>();
-        conf.Add("mode", this.mode);
+        Dictionary<string, string> conf;
+        if (this.config != null)
+        {
+            conf = Zenoh.Zenoh.ConfigFromFile(this.config);
+        }
+        else
+        {
+            conf = new Dictionary<string, string>();
+        }
+
+        if (this.mode != null)
+        {
+            conf["mode"] = this.mode;
+        }
         if (this.peer != null)
         {
-            conf.Add("peer", this.peer);
+            conf["peer"] = this.peer;
         }
         if (this.listener != null)
         {
-            conf.Add("listener", this.listener);
-        }
-        if (this.config != null)
-        {
-            conf.Add("config", this.config);
+            conf["listener"] = this.listener;
         }
         return conf;
     }

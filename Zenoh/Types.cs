@@ -13,6 +13,8 @@
 //
 using System;
 using System.Runtime.InteropServices;
+using System.Collections.Generic;
+using System.Linq;
 
 
 namespace Zenoh
@@ -49,6 +51,21 @@ namespace Zenoh
             // TODO Free ZBytes ???
             return managedArray;
         }
+
+        private static char[] _propSeparator = { ';' };
+        private static char[] _kvSeparator = { '=' };
+
+        internal static Dictionary<string, string> ZStringToProperties(ZString zs)
+        {
+            var str = ZTypes.ZStringToString(zs);
+
+            // Parse the properties from the string
+            var properties = str.Split(_propSeparator, StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => x.Split(_kvSeparator, 2))
+                .ToDictionary(x => x.First(), x => (x.Length == 2) ? x.Last() : "");
+            return properties;
+        }
+
     }
 
 }

@@ -16,7 +16,6 @@ using System;
 using System.Runtime.InteropServices;
 using System.Collections.Generic;
 using System.Text;
-using System.Linq;
 
 namespace Zenoh.Net
 {
@@ -49,26 +48,17 @@ namespace Zenoh.Net
             {
                 configStr += kvp.Key + "=" + kvp.Value + ";";
             }
-            var props = ZnConfigFromStr(configStr);
+            var props = Zenoh.ZnConfigFromStr(configStr);
 
             var nativeSession = ZnOpen(props);
             // TODO: check errors...
             return new Session(nativeSession);
         }
 
-        private static char[] _propSeparator = { ';' };
-        private static char[] _kvSeparator = { '=' };
-
         public Dictionary<string, string> Info()
         {
             var zstr = ZnInfoAsStr(this._nativePtr);
-            var str = ZTypes.ZStringToString(zstr);
-
-            // Parse the properties from the string
-            var properties = str.Split(_propSeparator, StringSplitOptions.RemoveEmptyEntries)
-                .Select(x => x.Split(_kvSeparator, 2))
-                .ToDictionary(x => x.First(), x => (x.Length == 2) ? x.Last() : "");
-            return properties;
+            return ZTypes.ZStringToProperties(zstr);
         }
 
         public ulong DeclareResource(ResKey reskey)
@@ -112,9 +102,6 @@ namespace Zenoh.Net
             callback(s);
         }
 
-
-        [DllImport("zenohc", EntryPoint = "zn_config_from_str", CharSet = CharSet.Ansi)]
-        internal static extern IntPtr /*zn_properties_t*/ ZnConfigFromStr([MarshalAs(UnmanagedType.LPStr)] string str);
 
         [DllImport("zenohc", EntryPoint = "zn_open")]
         internal static extern IntPtr /*zn_session_t*/ ZnOpen(IntPtr /*zn_properties_t*/ config);

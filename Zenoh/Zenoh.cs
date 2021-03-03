@@ -13,6 +13,7 @@
 //
 using System;
 using System.Runtime.InteropServices;
+using System.Collections.Generic;
 
 
 namespace Zenoh
@@ -22,6 +23,25 @@ namespace Zenoh
 
         [DllImport("zenohc", EntryPoint = "z_init_logger")]
         public static extern void InitLogger();
+
+        private static char[] _propSeparator = { ';' };
+        private static char[] _kvSeparator = { '=' };
+
+        public static Dictionary<string, string> ConfigFromFile(string path)
+        {
+            var zprops = ZnConfigFromFile(path);
+            var zstr = ZnConfigToStr(zprops);
+            return ZTypes.ZStringToProperties(zstr);
+        }
+
+        [DllImport("zenohc", EntryPoint = "zn_config_from_str", CharSet = CharSet.Ansi)]
+        internal static extern IntPtr /*zn_properties_t*/ ZnConfigFromStr([MarshalAs(UnmanagedType.LPStr)] string str);
+
+        [DllImport("zenohc", EntryPoint = "zn_config_to_str", CharSet = CharSet.Ansi)]
+        internal static extern ZString ZnConfigToStr(IntPtr /*zn_properties_t*/ znProps);
+
+        [DllImport("zenohc", EntryPoint = "zn_config_from_file", CharSet = CharSet.Ansi)]
+        internal static extern IntPtr /*zn_properties_t*/ ZnConfigFromFile([MarshalAs(UnmanagedType.LPStr)] string str);
 
     }
 

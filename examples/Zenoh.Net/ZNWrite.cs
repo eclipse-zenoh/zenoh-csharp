@@ -76,19 +76,27 @@ public class ExampleArgs
 
     public Dictionary<string, string> GetConf()
     {
-        var conf = new Dictionary<string, string>();
-        conf.Add("mode", this.mode);
+        Dictionary<string, string> conf;
+        if (this.config != null)
+        {
+            conf = Zenoh.Zenoh.ConfigFromFile(this.config);
+        }
+        else
+        {
+            conf = new Dictionary<string, string>();
+        }
+
+        if (this.mode != null)
+        {
+            conf["mode"] = this.mode;
+        }
         if (this.peer != null)
         {
-            conf.Add("peer", this.peer);
+            conf["peer"] = this.peer;
         }
         if (this.listener != null)
         {
-            conf.Add("listener", this.listener);
-        }
-        if (this.config != null)
-        {
-            conf.Add("config", this.config);
+            conf["listener"] = this.listener;
         }
         return conf;
     }
