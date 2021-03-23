@@ -190,13 +190,19 @@ namespace Zenoh.Net
         internal static extern NativeType ZnSubInfoDefault();
     }
 
+    // Type of the callback function expected by zenoh-c
+    internal delegate void SubscriberCallbackNative(IntPtr /* *const zn_sample_t */ samplePtr, IntPtr /* *const c_void */ callBackPtr);
+
     public class Subscriber
     {
         private IntPtr /*zn_subscriber_t*/ _nativePtr = IntPtr.Zero;
+        // Note: keep a reference to SubscriberCallbackNative to not have it garbage collected
+        private SubscriberCallbackNative _callback;
 
-        internal Subscriber(IntPtr nativeSubscriber)
+        internal Subscriber(IntPtr nativeSubscriber, SubscriberCallbackNative callback)
         {
             this._nativePtr = nativeSubscriber;
+            this._callback = callback;
         }
 
         public void Dispose() => Dispose(true);
