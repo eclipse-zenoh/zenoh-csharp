@@ -15,7 +15,7 @@
   <PropertyGroup>
     <AssemblyName>Zenoh</AssemblyName>
     <PackageId>Zenoh</PackageId>
-    <Version>0.0.2</Version>
+    <Version>0.0.3</Version>
     <Authors>Julien Enoch</Authors>
     <PackageLicenseExpression>EPL-2.0 OR Apache-2.0</PackageLicenseExpression>
     <Description>Zenoh: Zero Overhead Pub/sub, Store/Query and Compute.</Description>

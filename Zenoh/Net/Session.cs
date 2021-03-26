@@ -82,24 +82,33 @@ namespace Zenoh.Net
             }
         }
 
+        // Implementation of the zenoh-c callback that will call the C# user's callback passed as IntPtr
+        private static SubscriberCallbackNative TheSubscriberCallbackNative = new SubscriberCallbackNative(SubscriberCallbackNativeImpl);
+
+        internal static void SubscriberCallbackNativeImpl(IntPtr /* *const zn_sample_t */ samplePtr, IntPtr /* *const c_void */ callBackPtr)
+        {
+            Sample s = new Sample(samplePtr);
+            try
+            {
+                SubscriberCallback callback = Marshal.GetDelegateForFunctionPointer<SubscriberCallback>(callBackPtr);
+                callback(s);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("ERROR: Exception in SubscriberCallback triggered by Sample on {0}: {1}", s.ResName, e);
+                Console.WriteLine(e.StackTrace);
+            }
+        }
+
         public Subscriber DeclareSubscriber(ResKey reskey, SubInfo subInfo, SubscriberCallback callback)
         {
-            // convert the C# user callback as IntPtr to be passed as "arg" to zn_declare_subscriber()
-            // and received back in each call to SubscriberCallbackNativeImpl
+            // convert the C# user callback into an IntPtr to be passed as "arg" to zn_declare_subscriber()
+            // and received back in each call to SubscriberCallbackNativeImpl()
             IntPtr callbackPtr = Marshal.GetFunctionPointerForDelegate(callback);
             SubscriberCallbackNative callbackNative = new SubscriberCallbackNative(SubscriberCallbackNativeImpl);
             var nativeSubscriber = ZnDeclareSubscriber(this._nativePtr, reskey._key, subInfo._subInfo, callbackNative, callbackPtr);
-            return new Subscriber(nativeSubscriber, callbackNative);
+            return new Subscriber(nativeSubscriber, callbackNative, callback);
         }
-
-        // Implementation of the zenoh-c callback that will call the C# user's callback passed as IntPtr
-        internal void SubscriberCallbackNativeImpl(IntPtr /* *const zn_sample_t */ samplePtr, IntPtr /* *const c_void */ callBackPtr)
-        {
-            SubscriberCallback callback = Marshal.GetDelegateForFunctionPointer<SubscriberCallback>(callBackPtr);
-            Sample s = new Sample(samplePtr);
-            callback(s);
-        }
-
 
         [DllImport("zenohc", EntryPoint = "zn_open")]
         internal static extern IntPtr /*zn_session_t*/ ZnOpen(IntPtr /*zn_properties_t*/ config);
