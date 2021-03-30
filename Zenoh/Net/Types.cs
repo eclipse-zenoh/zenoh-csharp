@@ -40,7 +40,7 @@ namespace Zenoh.Net
         {
             get
             {
-                return Marshal.PtrToStringAnsi(this._key.suffix);
+                return Marshal.PtrToStringAnsi(_key.suffix);
             }
         }
 
@@ -75,7 +75,7 @@ namespace Zenoh.Net
 
         public bool IsNumerical()
         {
-            return this._key.suffix == IntPtr.Zero;
+            return _key.suffix == IntPtr.Zero;
         }
     }
 
@@ -103,15 +103,15 @@ namespace Zenoh.Net
         {
             // Note: copies are made here. Could we avoid this ?
             NativeType* s = (NativeType*)_sample;
-            this.ResName = ZTypes.ZStringToString(s->key);
-            this.Payload = ZTypes.ZBytesToBytesArray(s->value);
+            ResName = ZTypes.ZStringToString(s->key);
+            Payload = ZTypes.ZBytesToBytesArray(s->value);
         }
 
         internal Sample(NativeType _sample)
         {
             // Note: copies are made here. Could we avoid this ?
-            this.ResName = ZTypes.ZStringToString(_sample.key);
-            this.Payload = ZTypes.ZBytesToBytesArray(_sample.value);
+            ResName = ZTypes.ZStringToString(_sample.key);
+            Payload = ZTypes.ZBytesToBytesArray(_sample.value);
             ZnSampleFree(_sample);
         }
 
@@ -152,7 +152,7 @@ namespace Zenoh.Net
 
         public override string ToString()
         {
-            return String.Format("origin={0}, period={1}, duration={2}", this.origin, this.period, this.duration);
+            return String.Format("origin={0}, period={1}, duration={2}", origin, period, duration);
         }
     }
 
@@ -176,14 +176,14 @@ namespace Zenoh.Net
 
         public SubInfo(SubMode mode) : this()
         {
-            this._subInfo.mode = mode;
+            _subInfo.mode = mode;
         }
 
         // TODO: add period param
         public SubInfo(Reliability reliability, SubMode mode) : this()
         {
-            this._subInfo.reliability = reliability;
-            this._subInfo.mode = mode;
+            _subInfo.reliability = reliability;
+            _subInfo.mode = mode;
         }
 
         [DllImport("zenohc", EntryPoint = "zn_subinfo_default")]
@@ -198,26 +198,28 @@ namespace Zenoh.Net
 
     public class Subscriber
     {
+        private Session _session;
+        private Int32 _subscriberHandle;
         private IntPtr /*zn_subscriber_t*/ _nativePtr = IntPtr.Zero;
-        // Note: keep a reference to callbacks objects to not have them garbage collected
-        private SubscriberCallback _userCallback;
-        private SubscriberCallbackNative _nativeCallback;
+        internal SubscriberCallback UserCallback;
 
-        internal Subscriber(IntPtr nativeSubscriber, SubscriberCallbackNative nativeCallback, SubscriberCallback userCallback)
+        internal Subscriber(Session session, Int32 subscriberHandle, IntPtr nativeSubscriber, SubscriberCallback userCallback)
         {
+            this._session = session;
+            this._subscriberHandle = subscriberHandle;
             this._nativePtr = nativeSubscriber;
-            this._nativeCallback = nativeCallback;
-            this._userCallback = userCallback;
+            this.UserCallback = userCallback;
         }
 
         public void Dispose() => Dispose(true);
 
         protected virtual void Dispose(bool disposing)
         {
-            if (this._nativePtr != IntPtr.Zero)
+            if (_nativePtr != IntPtr.Zero)
             {
-                // TODO: unsubscribe
-                this._nativePtr = IntPtr.Zero;
+                Session.ZnUndeclareSubscriber(_nativePtr);
+                _session.Subscribers.Remove(_subscriberHandle);
+                _nativePtr = IntPtr.Zero;
             }
         }
     }

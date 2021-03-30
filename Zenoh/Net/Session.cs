@@ -16,6 +16,7 @@ using System;
 using System.Runtime.InteropServices;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 
 namespace Zenoh.Net
 {
@@ -24,19 +25,36 @@ namespace Zenoh.Net
     {
         private IntPtr /*zn_session_t*/ _nativePtr = IntPtr.Zero;
 
+        // keep a reference to the SubscriberCallbackNative delegate to avoid garbage collection
+        private SubscriberCallbackNative _subscriberCallbackNative;
+
+        // counter for subscriber handles generation
+        private Int32 _subscriberCounter = Int32.MinValue;
+        // map of declared subscribers
+        internal Dictionary<Int32, Subscriber> Subscribers;
+
         private Session(IntPtr /*zn_session_t*/ nativeSession)
         {
             this._nativePtr = nativeSession;
+            this._subscriberCallbackNative = new SubscriberCallbackNative(SubscriberCallbackNativeImpl);
+            this.Subscribers = new Dictionary<Int32, Subscriber>();
         }
 
         public void Dispose() => Dispose(true);
 
         protected virtual void Dispose(bool disposing)
         {
-            if (this._nativePtr != IntPtr.Zero)
+            if (_nativePtr != IntPtr.Zero)
             {
-                ZnClose(this._nativePtr);
-                this._nativePtr = IntPtr.Zero;
+                // make sure each Subscriber is disposed before closing the Session
+                foreach (Subscriber s in Subscribers.Values)
+                {
+                    s.Dispose();
+                }
+                Subscribers.Clear();
+
+                ZnClose(_nativePtr);
+                _nativePtr = IntPtr.Zero;
             }
         }
 
@@ -57,20 +75,20 @@ namespace Zenoh.Net
 
         public Dictionary<string, string> Info()
         {
-            var zstr = ZnInfoAsStr(this._nativePtr);
+            var zstr = ZnInfoAsStr(_nativePtr);
             return ZTypes.ZStringToProperties(zstr);
         }
 
         public ulong DeclareResource(ResKey reskey)
         {
-            return ZnDeclareResource(this._nativePtr, reskey._key);
+            return ZnDeclareResource(_nativePtr, reskey._key);
         }
 
         unsafe public void Write(ResKey reskey, byte[] payload)
         {
             fixed (byte* p = payload)
             {
-                ZnWrite(this._nativePtr, reskey._key, (IntPtr)p, (uint)payload.Length);
+                ZnWrite(_nativePtr, reskey._key, (IntPtr)p, (uint)payload.Length);
             }
         }
 
@@ -78,36 +96,36 @@ namespace Zenoh.Net
         {
             fixed (byte* p = payload)
             {
-                ZnWriteExt(this._nativePtr, reskey._key, (IntPtr)p, (uint)payload.Length, encoding, kind, congestionControl);
+                ZnWriteExt(_nativePtr, reskey._key, (IntPtr)p, (uint)payload.Length, encoding, kind, congestionControl);
             }
         }
 
-        // Implementation of the zenoh-c callback that will call the C# user's callback passed as IntPtr
-        private static SubscriberCallbackNative TheSubscriberCallbackNative = new SubscriberCallbackNative(SubscriberCallbackNativeImpl);
-
-        internal static void SubscriberCallbackNativeImpl(IntPtr /* *const zn_sample_t */ samplePtr, IntPtr /* *const c_void */ callBackPtr)
+        internal void SubscriberCallbackNativeImpl(IntPtr /* *const zn_sample_t */ samplePtr, IntPtr /* *const c_void */ callBackPtr)
         {
             Sample s = new Sample(samplePtr);
             try
             {
-                SubscriberCallback callback = Marshal.GetDelegateForFunctionPointer<SubscriberCallback>(callBackPtr);
-                callback(s);
+                Int32 subscriberHandle = callBackPtr.ToInt32();
+                Subscriber subscriber = Subscribers[subscriberHandle];
+                subscriber.UserCallback(s);
             }
-            catch (Exception e)
+            catch (OverflowException)
             {
-                Console.WriteLine("ERROR: Exception in SubscriberCallback triggered by Sample on {0}: {1}", s.ResName, e);
-                Console.WriteLine(e.StackTrace);
+                Console.WriteLine("Internal error: invalid subscriberHandle received in Subscriber callback: {0}", callBackPtr);
+            }
+            catch (KeyNotFoundException)
+            {
+                // The subscriber has been unregistered
             }
         }
 
         public Subscriber DeclareSubscriber(ResKey reskey, SubInfo subInfo, SubscriberCallback callback)
         {
-            // convert the C# user callback into an IntPtr to be passed as "arg" to zn_declare_subscriber()
-            // and received back in each call to SubscriberCallbackNativeImpl()
-            IntPtr callbackPtr = Marshal.GetFunctionPointerForDelegate(callback);
-            SubscriberCallbackNative callbackNative = new SubscriberCallbackNative(SubscriberCallbackNativeImpl);
-            var nativeSubscriber = ZnDeclareSubscriber(this._nativePtr, reskey._key, subInfo._subInfo, callbackNative, callbackPtr);
-            return new Subscriber(nativeSubscriber, callbackNative, callback);
+            Int32 subscriberHandle = Interlocked.Increment(ref _subscriberCounter);
+            var nativeSubscriber = ZnDeclareSubscriber(_nativePtr, reskey._key, subInfo._subInfo, _subscriberCallbackNative, new IntPtr(subscriberHandle));
+            var subscriber = new Subscriber(this, subscriberHandle, nativeSubscriber, callback);
+            Subscribers[subscriberHandle] = subscriber;
+            return subscriber;
         }
 
         [DllImport("zenohc", EntryPoint = "zn_open")]
@@ -146,6 +164,9 @@ namespace Zenoh.Net
             SubInfo.NativeType zSubInfo,
             SubscriberCallbackNative callback,
             IntPtr /*void* */ arg);
+
+        [DllImport("zenohc", EntryPoint = "zn_undeclare_subscriber")]
+        internal static extern void ZnUndeclareSubscriber(IntPtr /*zn_subscriber_t*/ sub);
 
     }
 }
