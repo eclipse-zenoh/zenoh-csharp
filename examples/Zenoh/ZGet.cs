@@ -1,0 +1,41 @@
+﻿using System;
+using System.Threading;
+using Zenoh;
+
+Zenoh.Zenoh.InitLogger();
+Config config = new Config();
+Session session = new Session();
+
+Console.WriteLine("Opening session...");
+if (session.Open(config))
+{
+    // wait
+    Thread.Sleep(1000);
+}
+else
+{
+    Console.WriteLine("Opening session unsuccessful");
+    return;
+}
+
+KeyExpr key1 = KeyExpr.FromString("/demo/example/zenoh-cs-put1");
+KeyExpr key2 = KeyExpr.FromString("/demo/example/zenoh-cs-put2");
+
+Console.WriteLine($"Sending Query '{key1.Suffix}'");
+ReplayDataArray data1 = session.Get(key1);
+foreach (ReplayData ele in data1.List)
+{
+    string s = $">> Received ('{ele.Sample.Key}': '{ele.Sample.ValueToString()}'";
+    Console.WriteLine(s);
+}
+
+
+ReplayDataArray data2 = session.Get(key2);
+Console.WriteLine($"Sending Query '{key2.Suffix}'");
+foreach (ReplayData ele in data2.List)
+{
+    string s = $">> Received ('{ele.Sample.Key}': '{ele.Sample.ValueToString()}'";
+    Console.WriteLine(s);
+}
+
+session.Close();

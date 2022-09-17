@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <AssemblyName>ZPut</AssemblyName>
+        <PackageId>ZPut</PackageId>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net6.0</TargetFramework>
+        <EnableDefaultItems>false</EnableDefaultItems>
+        <LangVersion>10</LangVersion>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\Zenoh\Zenoh.csproj"/>
+        <Compile Include="ZPut.cs"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="PowerArgs" Version="3.6.0"/>
+    </ItemGroup>
+
+</Project>
