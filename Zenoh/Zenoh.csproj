@@ -1,35 +1,20 @@
-<!--
-  Copyright (c) 2021 ADLINK Technology Inc.
-
-  This program and the accompanying materials are made available under the
-  terms of the Eclipse Public License 2.0 which is available at
-  http://www.eclipse.org/legal/epl-2.0, or the Apache License, Version 2.0
-  which is available at https://www.apache.org/licenses/LICENSE-2.0.
-
-  SPDX-License-Identifier: EPL-2.0 OR Apache-2.0
-
-  Contributors:
-    ADLINK zenoh team, <zenoh@adlink-labs.tech>
--->
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <AssemblyName>Zenoh</AssemblyName>
-        <PackageId>Zenoh</PackageId>
-        <Version>0.0.4</Version>
-        <Authors>Julien Enoch</Authors>
+        <PackageId>Zenoh-CS</PackageId>
+        <Version>0.0.1</Version>
+        <Authors>sanri</Authors>
         <PackageLicenseExpression>EPL-2.0 OR Apache-2.0</PackageLicenseExpression>
         <Description>Zenoh: Zero Overhead Pub/sub, Store/Query and Compute.</Description>
         <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-
-        <PackageProjectUrl>https://github.com/eclipse-zenoh/zenoh-csharp</PackageProjectUrl>
-        <RepositoryUrl>https://github.com/eclipse-zenoh/zenoh-csharp</RepositoryUrl>
+        <PackageProjectUrl>https://github.com/sanri/zenoh-csharp</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/sanri/zenoh-csharp</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
-
         <OutputType>Library</OutputType>
         <TargetFramework>net6.0</TargetFramework>
-
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-
         <LangVersion>10</LangVersion>
+        <PackageVersion>0.0.1</PackageVersion>
+        <PackageTags>zenoh</PackageTags>
     </PropertyGroup>
 </Project>
