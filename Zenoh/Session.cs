@@ -62,6 +62,12 @@ namespace Zenoh
             ZClose(ref native);
         }
 
+        public Info Info()
+        {
+            global::Zenoh.Info.NativeType n = ZInfo(ref native);
+            return new Info(n);
+        }
+
         public bool Put(KeyExpr key, string value)
         {
             IntPtr v = Marshal.StringToHGlobalAnsi(value);
@@ -123,6 +129,12 @@ namespace Zenoh
 
         [DllImport(Zenoh.DllName, EntryPoint = "z_close", CallingConvention = CallingConvention.Cdecl)]
         internal static extern void ZClose(ref NativeType session);
+
+        [DllImport(Zenoh.DllName, EntryPoint = "z_info", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern Info.NativeType ZInfo(ref NativeType session);
+
+        [DllImport(Zenoh.DllName, EntryPoint = "z_info_as_str", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ZString ZInfoAsStr(ref Session.NativeType session);
 
         [DllImport(Zenoh.DllName, EntryPoint = "z_put", CallingConvention = CallingConvention.Cdecl)]
         internal static extern int ZPut(ref NativeType session, KeyExpr.NativeType keyexpr, IntPtr payload, ulong len);

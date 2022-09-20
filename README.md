@@ -22,7 +22,7 @@ The Eclipse zenoh C# library is available on NuGet:
 
 ### Supported .NET Standards
 
-The library is configured to target the **.NET Standard 2.0** at minimum.
+The library is configured to target the **.NET 6.0** at minimum.
 
 
 -------------------------------
@@ -38,8 +38,8 @@ Simply run `dotnet build  Zenoh/`.
 -------------------------------
 ## Running the Examples
 
-The examples are configured to target **net5.0**.
+The examples are configured to target **net6.0**.
 
 The simplest way to run some of the examples is to get a Docker image of the **zenoh** network router (see https://github.com/eclipse-zenoh/zenoh#how-to-test-it) and then to run the examples on your machine.
 
-Then, run the zenoh-csharp examples following the instructions in [examples/Zenoh.Net/README.md](https://github.com/eclipse-zenoh/zenoh-csharp/blob/master/examples/Zenoh.Net/README.md)
+Then, run the zenoh-csharp examples following the instructions in [examples/Zenoh/README.md](https://github.com/eclipse-zenoh/zenoh-csharp/blob/master/examples/Zenoh/README.md)

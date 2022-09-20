@@ -5,6 +5,8 @@ using Zenoh;
 
 Zenoh.Zenoh.InitLogger();
 Config config = new Config();
+//string[] connect = {"tcp/172.30.100.3:7447"};
+//config.SetConnect(connect);
 Session session = new Session();
 
 Console.WriteLine("Opening session...");
