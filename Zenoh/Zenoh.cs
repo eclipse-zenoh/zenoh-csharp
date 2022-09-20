@@ -207,6 +207,7 @@ namespace Zenoh
         }
 
         internal NativeType native;
+        private bool _disposed = false;
 
         public ulong Id
         {
@@ -231,9 +232,17 @@ namespace Zenoh
             return new KeyExpr(key);
         }
 
-        public void Dispose()
+        public void Dispose() => Dispose(true);
+
+        protected virtual void Dispose(bool disposing)
         {
+            if (_disposed)
+            {
+                return;
+            }
+
             ZKeyexprFree(ref native);
+            _disposed = true;
         }
 
         [DllImport(Zenoh.DllName, EntryPoint = "z_expr_new", CallingConvention = CallingConvention.Cdecl)]
@@ -452,5 +461,8 @@ namespace Zenoh
 
         [DllImport(Zenoh.DllName, EntryPoint = "z_string_check", CallingConvention = CallingConvention.Cdecl)]
         internal static extern bool ZStringCheck(ref ZString s);
+        
+        [DllImport(Zenoh.DllName, EntryPoint = "z_bytes_free", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void ZBytesFree(ref ZString s);
     }
 }
