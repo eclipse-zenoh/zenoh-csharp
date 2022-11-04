@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace Zenoh
 {
@@ -70,8 +71,10 @@ namespace Zenoh
 
         public bool Put(KeyExpr key, string value)
         {
-            IntPtr v = Marshal.StringToHGlobalAnsi(value);
-            int r = ZPut(ref native, key.native, v, (ulong)value.Length);
+            byte[] data = Encoding.UTF8.GetBytes(value);
+            IntPtr v = Marshal.AllocHGlobal(data.Length);
+            Marshal.Copy(data, 0, v, data.Length);
+            int r = ZPut(ref native, key.native, v, (ulong)data.Length);
             Marshal.FreeHGlobal(v);
             if (r == 0)
             {
