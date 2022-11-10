@@ -23,8 +23,8 @@ namespace Zenoh
     {
         public const string DllName = "zenohc";
 
-        [DllImport(Zenoh.DllName, EntryPoint = "z_init_logger")]
-        public static extern void InitLogger();
+        //[DllImport(Zenoh.DllName, EntryPoint = "z_init_logger")]
+        //public static extern void InitLogger();
     }
 
     public enum KnownEncoding : int // e_known_encoding_t

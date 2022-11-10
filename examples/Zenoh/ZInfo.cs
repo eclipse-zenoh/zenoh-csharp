@@ -3,7 +3,7 @@ using System.Linq;
 using System.Threading;
 using Zenoh;
 
-Zenoh.Zenoh.InitLogger();
+//Zenoh.Zenoh.InitLogger();
 Config config = new Config();
 config.SetId("01");
 //string[] c = { "tcp/172.30.100.3:7447", "tcp/172.30.100.1:7447" };

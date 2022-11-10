@@ -2,7 +2,7 @@
 using System.Threading;
 using Zenoh;
 
-Zenoh.Zenoh.InitLogger();
+//Zenoh.Zenoh.InitLogger();
 Config config = new Config();
 //string[] connect = {"tcp/172.30.100.3:7447"};
 //config.SetConnect(connect);
