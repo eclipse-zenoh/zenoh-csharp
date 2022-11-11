@@ -140,12 +140,12 @@ namespace Zenoh
             return output.ToArray();
         }
 
-        public bool Put(KeyExpr key, string value)
+        public bool Put(KeyExpr key, string value, ref PutOptions options)
         {
             byte[] data = Encoding.UTF8.GetBytes(value);
             IntPtr v = Marshal.AllocHGlobal(data.Length);
             Marshal.Copy(data, 0, v, data.Length);
-            int r = ZPut(ref native, key.native, v, (ulong)data.Length);
+            int r = ZPut(ref native, key.native, v, (ulong)data.Length, ref options.native);
             Marshal.FreeHGlobal(v);
             if (r == 0)
             {
@@ -178,7 +178,7 @@ namespace Zenoh
             if (ZSubscriberCheck(ref nativeSubscriber))
             {
                 subscriber.nativeSubscriber = nativeSubscriber;
-                Subscribers[subscriber.key.Suffix] = subscriber;
+                Subscribers[subscriber.key.GetStr()] = subscriber;
                 return true;
             }
             else
@@ -214,7 +214,8 @@ namespace Zenoh
         internal static extern sbyte ZInfoRoutersZid(ref NativeType session, ref ZClosureZid callback);
 
         [DllImport(Zenoh.DllName, EntryPoint = "z_put", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern int ZPut(ref NativeType session, KeyExpr.NativeType keyexpr, IntPtr payload, ulong len);
+        internal static extern int ZPut(ref NativeType session, KeyExpr.NativeType keyexpr, IntPtr payload, ulong len,
+            ref PutOptions.NativeType opts);
 
         [DllImport(Zenoh.DllName, EntryPoint = "z_subscriber_check")]
         internal static extern bool ZSubscriberCheck(ref Subscriber.NativeType sub);

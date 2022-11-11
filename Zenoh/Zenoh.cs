@@ -43,7 +43,7 @@ namespace Zenoh
         internal const int IdLength = 16;
     }
 
-    public enum KnownEncoding : int // e_known_encoding_t
+    public enum ZEncodingPrefix : int // z_encoding_prefix_t
     {
         Empty = 0,
         AppOctetStream = 1,
@@ -66,6 +66,23 @@ namespace Zenoh
         ImageJpeg = 18,
         ImagePng = 19,
         ImageGif = 20,
+    }
+
+    public enum ZCongestionControl : int    // z_congestion_control_t
+    {
+        Block,
+        Drop,
+    }
+
+    public enum ZPriority : int // z_priority_t
+    {
+        RealTime = 1,
+        InteractiveHigh = 2,
+        InteractiveLow = 3,
+        DataHigh = 4,
+        Data = 5,
+        DataLow = 6,
+        Background = 7,
     }
 
     public enum ConsolidationMode : int // z_consolidation_mode_t
@@ -117,13 +134,21 @@ namespace Zenoh
     [StructLayout(LayoutKind.Sequential)]
     public struct ZEncoding // z_encoding_t
     {
-        internal KnownEncoding prefix;
+        internal ZEncodingPrefix prefix;
         internal ZBytes suffix;
 
         public String PrefixToString()
         {
             return prefix.ToString();
         }
+
+        public static ZEncoding New(ZEncodingPrefix prefix)
+        {
+            return FnZEncoding(prefix, IntPtr.Zero);
+        }
+
+        [DllImport(Zenoh.DllName, EntryPoint = "z_encoding", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ZEncoding FnZEncoding(ZEncodingPrefix prefix, IntPtr suffix);
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -153,6 +178,41 @@ namespace Zenoh
         }
     }
 
+    public struct PutOptions
+    {
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct NativeType // z_put_options_t
+        {
+            internal ZEncoding encoding;
+            internal ZCongestionControl congestionControl;
+            internal ZPriority priority;
+        }
+
+        internal NativeType native;
+
+        public PutOptions()
+        {
+            native = ZPutOptionsDefault();
+        }
+
+        public void SetEncoding(ZEncoding encoding)
+        {
+            native.encoding = encoding;
+        }
+
+        public void SetCongestionControl(ZCongestionControl congestionControl)
+        {
+            native.congestionControl = congestionControl;
+        }
+
+        public void SetPriority(ZPriority priority)
+        {
+            native.priority = priority;
+        }
+
+        [DllImport(Zenoh.DllName, EntryPoint = "z_put_options_default", CallingConvention = CallingConvention.Cdecl)]
+        private static extern NativeType ZPutOptionsDefault();
+    }
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     internal delegate void ZOwnedClosureZidCallback(ref Zid zid, IntPtr p);
@@ -172,59 +232,47 @@ namespace Zenoh
         }
     }
 
-    public class KeyExpr : IDisposable
+    public class KeyExpr 
     {
         [StructLayout(LayoutKind.Sequential)]
-        public struct NativeType // z_keyexpr_t
+        public struct NativeType // z_keyexpr_t 
         {
-            internal ulong id;
-            internal ZBytes suffix;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 2)]
+            private UInt64[] _align;
+            
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 2)]
+            private UIntPtr[] _padding;
         }
 
         internal NativeType native;
-        private bool _disposed = false;
+        internal string key;
 
-        public ulong Id
-        {
-            get { return native.id; }
-        }
-
-        public string Suffix
-        {
-            get { return Marshal.PtrToStringAnsi(native.suffix.start, (int)native.suffix.len); }
-        }
-
-        internal KeyExpr(NativeType native)
+        internal KeyExpr(NativeType native, string key)
         {
             this.native = native;
+            this.key = key;
         }
 
         public static KeyExpr FromString(string name)
         {
             IntPtr p = Marshal.StringToHGlobalAnsi(name);
-            NativeType key = ZExprNew(p);
+            NativeType keyexpr = ZKeyexpr(p);
             Marshal.FreeHGlobal(p);
-            return new KeyExpr(key);
+            return new KeyExpr(keyexpr,name);
         }
 
-        public void Dispose() => Dispose(true);
-
-        protected virtual void Dispose(bool disposing)
+        public string GetStr()
         {
-            if (_disposed)
-            {
-                return;
-            }
-
-            ZKeyexprFree(ref native);
-            _disposed = true;
+            //IntPtr ptr = ZKeyexprToString(native);
+            //string output = Marshal.PtrToStringAnsi(ptr);
+            return this.key;
         }
 
-        [DllImport(Zenoh.DllName, EntryPoint = "z_expr_new", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern NativeType ZExprNew(IntPtr name);
-
-        [DllImport(Zenoh.DllName, EntryPoint = "z_keyexpr_free", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern void ZKeyexprFree(ref NativeType key);
+        [DllImport(Zenoh.DllName, EntryPoint = "z_keyexpr", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern NativeType ZKeyexpr(IntPtr name);
+        
+        [DllImport(Zenoh.DllName, EntryPoint = "z_keyexpr_to_string", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern IntPtr ZKeyexprToString(NativeType keyexpr);
     }
 
     public class QueryTarget

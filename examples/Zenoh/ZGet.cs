@@ -23,7 +23,7 @@ else
 KeyExpr key1 = KeyExpr.FromString("/demo/example/zenoh-cs-put1");
 KeyExpr key2 = KeyExpr.FromString("/demo/example/zenoh-cs-put2");
 
-Console.WriteLine($"Sending Query '{key1.Suffix}'");
+Console.WriteLine($"Sending Query '{key1.GetStr()}'");
 ReplayDataArray data1 = session.Get(key1);
 foreach (ReplayData ele in data1.List)
 {
@@ -33,7 +33,7 @@ foreach (ReplayData ele in data1.List)
 
 
 ReplayDataArray data2 = session.Get(key2);
-Console.WriteLine($"Sending Query '{key2.Suffix}'");
+Console.WriteLine($"Sending Query '{key2.GetStr()}'");
 foreach (ReplayData ele in data2.List)
 {
     string s = $">> Received ('{ele.Sample.Key}': '{ele.Sample.ValueToString()}'";
