@@ -36,7 +36,7 @@ namespace Zenoh
                 return;
             }
 
-            ZConfigFree(ref native);
+            ZConfigDrop(ref native);
             _disposed = true;
         }
 
@@ -95,9 +95,8 @@ namespace Zenoh
 
         public string ToStr()
         {
-            ZString zs = ZConfigToStr(ref native);
-            string result = ZTypes.ZStringToString(zs);
-            ZTypes.ZStringFree(ref zs);
+            IntPtr p = ZCConfigToString(ref native);
+            string result = Marshal.PtrToStringAnsi(p);
             return result;
         }
 
@@ -105,34 +104,34 @@ namespace Zenoh
         {
             IntPtr k = Marshal.StringToHGlobalAnsi(key);
             IntPtr v = Marshal.StringToHGlobalAnsi(value);
-            bool r = ZConfigInsertJson(ref native, k, v);
+            sbyte r = ZCConfigInsertJson(ref native, k, v);
             Marshal.FreeHGlobal(k);
             Marshal.FreeHGlobal(v);
-            return r;
+            return r == 1 ? true : false;
         }
 
         [DllImport(Zenoh.DllName, EntryPoint = "z_config_default", CallingConvention = CallingConvention.Cdecl)]
         internal static extern NativeType ZConfigDefault();
 
-        [DllImport(Zenoh.DllName, EntryPoint = "z_config_from_str", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern NativeType ZConfigFromStr([MarshalAs(UnmanagedType.LPStr)] string str);
+        [DllImport(Zenoh.DllName, EntryPoint = "z_config_drop", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern void ZConfigDrop(ref NativeType config);
 
-        [DllImport(Zenoh.DllName, EntryPoint = "z_config_from_file", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern NativeType ZConfigFromFile([MarshalAs(UnmanagedType.LPStr)] string path);
+        [DllImport(Zenoh.DllName, EntryPoint = "zc_config_from_str", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern NativeType ZCConfigFromStr([MarshalAs(UnmanagedType.LPStr)] string str);
+
+        [DllImport(Zenoh.DllName, EntryPoint = "zc_config_from_file", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern NativeType ZCConfigFromFile([MarshalAs(UnmanagedType.LPStr)] string path);
 
         [DllImport(Zenoh.DllName, EntryPoint = "z_config_check", CallingConvention = CallingConvention.Cdecl)]
         internal static extern bool ZConfigCheck(ref NativeType config);
 
-        [DllImport(Zenoh.DllName, EntryPoint = "z_config_to_str", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern ZString ZConfigToStr(ref NativeType config);
+        [DllImport(Zenoh.DllName, EntryPoint = "zc_config_to_string", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern IntPtr ZCConfigToString(ref NativeType config);
 
-        [DllImport(Zenoh.DllName, EntryPoint = "z_config_get", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern ZString ZConfigGet(ref NativeType config, ZString key);
+        [DllImport(Zenoh.DllName, EntryPoint = "zc_config_get", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern IntPtr ZCConfigGet(ref NativeType config, ZString key);
 
-        [DllImport(Zenoh.DllName, EntryPoint = "z_config_insert_json", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern bool ZConfigInsertJson(ref NativeType config, IntPtr key, IntPtr value);
-
-        [DllImport(Zenoh.DllName, EntryPoint = "z_config_free", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern void ZConfigFree(ref NativeType config);
+        [DllImport(Zenoh.DllName, EntryPoint = "zc_config_insert_json", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern sbyte ZCConfigInsertJson(ref NativeType config, IntPtr key, IntPtr value);
     }
 }

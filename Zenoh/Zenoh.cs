@@ -15,6 +15,7 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Collections.Generic;
+using System.Text;
 
 
 namespace Zenoh
@@ -23,8 +24,23 @@ namespace Zenoh
     {
         public const string DllName = "zenohc";
 
-        //[DllImport(Zenoh.DllName, EntryPoint = "z_init_logger")]
-        //public static extern void InitLogger();
+        [DllImport(Zenoh.DllName, EntryPoint = "zc_init_logger")]
+        public static extern void InitLogger();
+
+        public static string IdBytesToStr(byte[] buf)
+        {
+            StringBuilder str = new StringBuilder();
+            for (int i = buf.Length - 1; i >= 0; i--)
+            {
+                str.Append($"{buf[i]:X2}");
+            }
+
+            return str.ToString();
+        }
+
+        internal const int RoutersNum = 128;
+        internal const int PeersNum = 256;
+        internal const int IdLength = 16;
     }
 
     public enum KnownEncoding : int // e_known_encoding_t
@@ -125,76 +141,35 @@ namespace Zenoh
         }
     }
 
-    public class Info : IDisposable
+    [StructLayout(LayoutKind.Sequential)]
+    public struct Zid
     {
-        [StructLayout(LayoutKind.Sequential)]
-        public struct NativeType // z_owned_info_t
+        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
+        internal byte[] id;
+
+        public string ToStr()
         {
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 2)]
-            internal UInt64[] align;
-
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-            internal UIntPtr[] pad;
+            return Zenoh.IdBytesToStr(id);
         }
+    }
 
-        internal NativeType native;
-        private bool _disposed;
 
-        internal Info(NativeType natvie)
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate void ZOwnedClosureZidCallback(ref Zid zid, IntPtr p);
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct ZClosureZid // z_owned_closure_zid_t
+    {
+        internal IntPtr context;
+        internal ZOwnedClosureZidCallback call;
+        internal IntPtr drop;
+
+        public ZClosureZid(ZOwnedClosureZidCallback call, IntPtr context)
         {
-            native = natvie;
-            _disposed = false;
+            this.context = context;
+            this.call = call;
+            this.drop = IntPtr.Zero;
         }
-
-        public void Dispose() => Dispose(true);
-
-        private void Dispose(bool disposing)
-        {
-            if (_disposed)
-            {
-                return;
-            }
-
-            ZInfoFree(ref native);
-            _disposed = true;
-        }
-
-        public String Pid()
-        {
-            uint key = 0x00;
-            return InfoGet(key);
-        }
-
-        public String[] PeerPid()
-        {
-            uint key = 0x01;
-            string r = InfoGet(key);
-            return r.Split(',');
-        }
-
-        public String[] RouterPid()
-        {
-            uint key = 0x02;
-            string r = InfoGet(key);
-            return r.Split(',');
-        }
-
-        private String InfoGet(uint key)
-        {
-            ZString s = ZInfoGet(ref native, key);
-            string result = ZTypes.ZStringToString(s);
-            ZTypes.ZStringFree(ref s);
-            return result;
-        }
-
-        [DllImport(Zenoh.DllName, EntryPoint = "z_info_free", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern void ZInfoFree(ref NativeType info);
-
-        [DllImport(Zenoh.DllName, EntryPoint = "z_info_check", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern bool ZInfoCheck(ref NativeType info);
-
-        [DllImport(Zenoh.DllName, EntryPoint = "z_info_get", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern ZString ZInfoGet(ref NativeType info, UInt64 key);
     }
 
     public class KeyExpr : IDisposable
@@ -461,7 +436,7 @@ namespace Zenoh
 
         [DllImport(Zenoh.DllName, EntryPoint = "z_string_check", CallingConvention = CallingConvention.Cdecl)]
         internal static extern bool ZStringCheck(ref ZString s);
-        
+
         [DllImport(Zenoh.DllName, EntryPoint = "z_bytes_free", CallingConvention = CallingConvention.Cdecl)]
         internal static extern void ZBytesFree(ref ZString s);
     }

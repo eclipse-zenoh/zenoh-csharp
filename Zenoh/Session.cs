@@ -63,10 +63,81 @@ namespace Zenoh
             ZClose(ref native);
         }
 
-        public Info Info()
+        public string LocalZid()
         {
-            global::Zenoh.Info.NativeType n = ZInfo(ref native);
-            return new Info(n);
+            Zid zid = ZInfoZid(ref native);
+            return zid.ToStr();
+        }
+
+
+        private static List<string> GetIdStrings(IntPtr buf)
+        {
+            List<string> list = new List<string>();
+            int len = Marshal.ReadByte(buf);
+            for (int i = 0; i < len; i++)
+            {
+                byte[] b = new byte[Zenoh.IdLength];
+                Marshal.Copy(buf + 1 + Zenoh.IdLength * i, b, 0, Zenoh.IdLength);
+                list.Add(Zenoh.IdBytesToStr(b));
+            }
+
+            return list;
+        }
+
+        private static void InfoZidCallback(ref Zid zid, IntPtr buf)
+        {
+            int i = Marshal.ReadByte(buf);
+            if (i >= Zenoh.RoutersNum)
+            {
+                return;
+            }
+
+            Marshal.Copy(zid.id, 0, buf + 1 + Zenoh.IdLength * i, Zenoh.IdLength);
+            Marshal.WriteByte(buf, (byte)(i + 1));
+        }
+
+        public string[] RoutersZid()
+        {
+            int length = 1 + Zenoh.IdLength * Zenoh.RoutersNum;
+            IntPtr buffer = Marshal.AllocHGlobal(length);
+            for (int i = 0; i < length; i++)
+            {
+                Marshal.WriteByte(buffer, i, 0);
+            }
+
+            ZClosureZid closure = new ZClosureZid(InfoZidCallback, buffer);
+            sbyte r = ZInfoRoutersZid(ref native, ref closure);
+            if (r != 0)
+            {
+                return Array.Empty<string>();
+            }
+
+            var output = GetIdStrings(buffer);
+
+            Marshal.FreeHGlobal(buffer);
+            return output.ToArray();
+        }
+
+        public string[] PeersZid()
+        {
+            int length = 1 + Zenoh.IdLength * Zenoh.PeersNum;
+            IntPtr buffer = Marshal.AllocHGlobal(length);
+            for (int i = 0; i < length; i++)
+            {
+                Marshal.WriteByte(buffer, i, 0);
+            }
+
+            ZClosureZid closure = new ZClosureZid(InfoZidCallback, buffer);
+            sbyte r = ZInfoPeersZid(ref native, ref closure);
+            if (r != 0)
+            {
+                return Array.Empty<string>();
+            }
+
+            var output = GetIdStrings(buffer);
+
+            Marshal.FreeHGlobal(buffer);
+            return output.ToArray();
         }
 
         public bool Put(KeyExpr key, string value)
@@ -133,11 +204,14 @@ namespace Zenoh
         [DllImport(Zenoh.DllName, EntryPoint = "z_close", CallingConvention = CallingConvention.Cdecl)]
         internal static extern void ZClose(ref NativeType session);
 
-        [DllImport(Zenoh.DllName, EntryPoint = "z_info", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern Info.NativeType ZInfo(ref NativeType session);
+        [DllImport(Zenoh.DllName, EntryPoint = "z_info_zid", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern Zid ZInfoZid(ref NativeType session);
 
-        [DllImport(Zenoh.DllName, EntryPoint = "z_info_as_str", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern ZString ZInfoAsStr(ref Session.NativeType session);
+        [DllImport(Zenoh.DllName, EntryPoint = "z_info_peers_zid", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern sbyte ZInfoPeersZid(ref NativeType session, ref ZClosureZid callback);
+
+        [DllImport(Zenoh.DllName, EntryPoint = "z_info_routers_zid", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern sbyte ZInfoRoutersZid(ref NativeType session, ref ZClosureZid callback);
 
         [DllImport(Zenoh.DllName, EntryPoint = "z_put", CallingConvention = CallingConvention.Cdecl)]
         internal static extern int ZPut(ref NativeType session, KeyExpr.NativeType keyexpr, IntPtr payload, ulong len);

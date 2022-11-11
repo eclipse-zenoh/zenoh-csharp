@@ -26,13 +26,12 @@ else
     return;
 }
 
+string pid = session.LocalZid();
+string[] routerPid = session.RoutersZid();
+string[] peerPid = session.PeersZid();
 
-Info info = session.Info();
-string pid = info.Pid();
-string[] routerPid = info.RouterPid();
-string[] peerPid = info.PeerPid();
-info.Dispose();
-
-Console.WriteLine($"PID: {pid}\nPeer PID: {String.Join(',', peerPid)}\nRouter PID: {String.Join(',', routerPid)}");
+Console.WriteLine($"Local PID: {pid}");
+Console.WriteLine($"PeersPID: {String.Join(',', peerPid)}");
+Console.WriteLine($"Routers PID: {String.Join(',', routerPid)}");
 
 session.Close();
