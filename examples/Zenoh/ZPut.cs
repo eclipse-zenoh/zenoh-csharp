@@ -21,15 +21,13 @@ else
 
 KeyExpr key1 = KeyExpr.FromString("demo/example/zenoh-cs-put1");
 KeyExpr key2 = KeyExpr.FromString("demo/example/zenoh-cs-put2");
-PutOptions options = new PutOptions();
-options.SetEncoding(ZEncoding.New(ZEncodingPrefix.TextPlain));
 
 for (int i = 0; i < 5; i++)
 {
     KeyExpr key = (i % 2) == 0 ? key1 : key2;
 
     string data = $"Put from csharp {i}!";
-    bool r = session.Put(key, data, ref options);
+    bool r = session.Put(key, data);
     if (r)
     {
         Console.WriteLine($"Putting Data ('{key.GetStr()}': '{data}')");

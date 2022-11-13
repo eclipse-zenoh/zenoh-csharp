@@ -140,13 +140,32 @@ namespace Zenoh
             return output.ToArray();
         }
 
-        public bool Put(KeyExpr key, string value, ref PutOptions options)
+        public bool Put(KeyExpr key, string s)
         {
-            byte[] data = Encoding.UTF8.GetBytes(value);
-            IntPtr v = Marshal.AllocHGlobal(data.Length + 1);
-            Marshal.Copy(data, 0, v, data.Length);
-            Marshal.WriteByte(v, data.Length, 0);
-            int r = ZPut(ref native, key.native, v, (ulong)data.Length, ref options.native);
+            byte[] data = Encoding.UTF8.GetBytes(s);
+            PutOptions options = new PutOptions();
+            options.SetEncoding(ZEncoding.New(ZEncodingPrefix.TextPlain));
+            return _Put(key, data, ref options);
+        }
+        
+        public bool PutJson(KeyExpr key, string s)
+        {
+            byte[] data = Encoding.UTF8.GetBytes(s);
+            PutOptions options = new PutOptions();
+            options.SetEncoding(ZEncoding.New(ZEncodingPrefix.TextJson));
+            return _Put(key, data, ref options);
+        }
+
+//        public bool Put(KeyExpr key, Int64 value) { }
+        
+ //       public bool Put(KeyExpr key, double value){ }
+        
+
+        protected bool _Put(KeyExpr key, byte[] value, ref PutOptions options)
+        {
+            IntPtr v = Marshal.AllocHGlobal(value.Length);
+            Marshal.Copy(value, 0, v, value.Length);
+            int r = ZPut(ref native, key.native, v, (ulong)value.Length, ref options.native);
             Marshal.FreeHGlobal(v);
             if (r == 1)
             {
