@@ -143,11 +143,12 @@ namespace Zenoh
         public bool Put(KeyExpr key, string value, ref PutOptions options)
         {
             byte[] data = Encoding.UTF8.GetBytes(value);
-            IntPtr v = Marshal.AllocHGlobal(data.Length);
+            IntPtr v = Marshal.AllocHGlobal(data.Length + 1);
             Marshal.Copy(data, 0, v, data.Length);
+            Marshal.WriteByte(v, data.Length, 0);
             int r = ZPut(ref native, key.native, v, (ulong)data.Length, ref options.native);
             Marshal.FreeHGlobal(v);
-            if (r == 0)
+            if (r == 1)
             {
                 return true;
             }
@@ -157,6 +158,7 @@ namespace Zenoh
             }
         }
 
+        /*
         public ReplayDataArray Get(KeyExpr key)
         {
             QueryTarget target = new QueryTarget();
@@ -169,12 +171,18 @@ namespace Zenoh
             Marshal.FreeHGlobal(predicate);
             return new ReplayDataArray(nativeData);
         }
+        */
 
-        public bool RegisterSubscriber(SubInfo subInfo, Subscriber subscriber)
+        public bool RegisterSubscriber(Subscriber subscriber)
         {
-            Subscriber.NativeType nativeSubscriber = ZSubscribe(ref native, subscriber.key.native, subInfo.native,
-                subscriber.nativeCallback,
-                IntPtr.Zero);
+            return RegisterSubscriber(subscriber, Subscriber.GetOptionsDefault());
+        }
+
+        public bool RegisterSubscriber(Subscriber subscriber, Subscriber.Options options)
+        {
+            Subscriber.NativeType nativeSubscriber = ZDeclareSubscribe(ref native, subscriber.key.native,
+                ref subscriber.closure,
+                ref options);
             if (ZSubscriberCheck(ref nativeSubscriber))
             {
                 subscriber.nativeSubscriber = nativeSubscriber;
@@ -220,17 +228,19 @@ namespace Zenoh
         [DllImport(Zenoh.DllName, EntryPoint = "z_subscriber_check")]
         internal static extern bool ZSubscriberCheck(ref Subscriber.NativeType sub);
 
-        [DllImport(Zenoh.DllName, EntryPoint = "z_subscribe")]
-        internal static extern Subscriber.NativeType ZSubscribe(ref NativeType session, KeyExpr.NativeType keyexpr,
-            SubInfo.NativeType sub_info,
-            SubscriberCallbackNative callback, IntPtr arg);
+        [DllImport(Zenoh.DllName, EntryPoint = "z_declare_subscriber")]
+        internal static extern Subscriber.NativeType ZDeclareSubscribe(ref NativeType session,
+            KeyExpr.NativeType keyexpr,
+            ref ZClosureSample callback, ref Subscriber.Options opts);
 
         [DllImport(Zenoh.DllName, EntryPoint = "z_subscriber_close")]
         internal static extern void ZSubscriberClose(ref Subscriber.NativeType sub);
 
+        /*
         [DllImport(Zenoh.DllName, EntryPoint = "z_get_collect", CallingConvention = CallingConvention.Cdecl)]
         internal static extern ReplayDataArray.NativeType ZGetCollect(ref NativeType session,
             KeyExpr.NativeType keyexpr, IntPtr predicate, QueryTarget.NativeType target,
             QueryConsolidation.NativeType consolidation);
+        */
     }
 }

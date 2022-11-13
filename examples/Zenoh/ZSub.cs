@@ -21,37 +21,35 @@ else
     return;
 }
 
-SubInfo info = new SubInfo(Reliability.Reliable, SubMode.Push);
-
 void Callback1(Sample sample)
 {
     string key = sample.Key;
-    string value = Encoding.UTF8.GetString(sample.Value);
+    string value = sample.ValueToString();
     Console.WriteLine($">> [Subscriber1] Received PUT ('{key}': '{value}')");
 }
 
 void Callback2(Sample sample)
 {
     string key = sample.Key;
-    string value = Encoding.UTF8.GetString(sample.Value);
+    string value = sample.ValueToString();
     Console.WriteLine($">> [Subscriber2] Received PUT ('{key}': '{value}')");
 }
 
 SubscriberCallback userCallback1 = Callback1;
 SubscriberCallback userCallback2 = Callback2;
 
-string key1 = "/demo/example/zenoh-cs-put1";
-string key2 = "/demo/example/zenoh-cs-put2";
+string key1 = "demo/example/zenoh-cs-put1";
+string key2 = "demo/example/zenoh-cs-put2";
 
 Subscriber subscriber1 = new Subscriber(key1, userCallback1);
 Subscriber subscriber2 = new Subscriber(key2, userCallback2);
 
-if (session.RegisterSubscriber(info, subscriber1))
+if (session.RegisterSubscriber(subscriber1))
 {
     Console.WriteLine($"Registered Subscriber1 On '{key1}'");
 }
 
-if (session.RegisterSubscriber(info, subscriber2))
+if (session.RegisterSubscriber(subscriber2))
 {
     Console.WriteLine($"Registered Subscriber2 On '{key2}'");
 }

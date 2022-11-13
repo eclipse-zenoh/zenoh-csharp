@@ -2,10 +2,10 @@
 using System.Threading;
 using Zenoh;
 
-//Zenoh.Zenoh.InitLogger();
+Zenoh.Zenoh.InitLogger();
 Config config = new Config();
-//string[] connect = {"tcp/172.30.100.3:7447"};
-//config.SetConnect(connect);
+string[] connect = { "tcp/172.19.94.129:7447" };
+config.SetConnect(connect);
 Session session = new Session();
 
 Console.WriteLine("Opening session...");
@@ -29,7 +29,7 @@ for (int i = 0; i < 5; i++)
     KeyExpr key = (i % 2) == 0 ? key1 : key2;
 
     string data = $"Put from csharp {i}!";
-    bool r = session.Put(key, data,ref options);
+    bool r = session.Put(key, data, ref options);
     if (r)
     {
         Console.WriteLine($"Putting Data ('{key.GetStr()}': '{data}')");

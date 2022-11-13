@@ -2,6 +2,7 @@
 using System.Threading;
 using Zenoh;
 
+/*
 //Zenoh.Zenoh.InitLogger();
 Config config = new Config();
 //string[] connect = {"tcp/172.30.100.3:7447"};
@@ -20,8 +21,8 @@ else
     return;
 }
 
-KeyExpr key1 = KeyExpr.FromString("/demo/example/zenoh-cs-put1");
-KeyExpr key2 = KeyExpr.FromString("/demo/example/zenoh-cs-put2");
+KeyExpr key1 = KeyExpr.FromString("demo/example/zenoh-cs-put1");
+KeyExpr key2 = KeyExpr.FromString("demo/example/zenoh-cs-put2");
 
 Console.WriteLine($"Sending Query '{key1.GetStr()}'");
 ReplayDataArray data1 = session.Get(key1);
@@ -41,3 +42,7 @@ foreach (ReplayData ele in data2.List)
 }
 
 session.Close();
+
+*/
+
+Console.WriteLine("hello");

@@ -68,7 +68,13 @@ namespace Zenoh
         ImageGif = 20,
     }
 
-    public enum ZCongestionControl : int    // z_congestion_control_t
+    public enum ZSampleKind : int // z_sample_kind_t
+    {
+        Put = 0,
+        Delete = 1,
+    }
+
+    public enum ZCongestionControl : int // z_congestion_control_t
     {
         Block,
         Drop,
@@ -123,6 +129,13 @@ namespace Zenoh
     {
         public IntPtr start;
         public ulong len;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct ZTimestamp // z_timestamp_t
+    {
+        public UInt64 time;
+        public ZBytes id;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -232,45 +245,62 @@ namespace Zenoh
         }
     }
 
-    public class KeyExpr 
+    public class KeyExpr : IDisposable
     {
         [StructLayout(LayoutKind.Sequential)]
         public struct NativeType // z_keyexpr_t 
         {
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 2)]
             private UInt64[] _align;
-            
+
             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 2)]
             private UIntPtr[] _padding;
+
+            internal string GetStr()
+            {
+                IntPtr ptr = ZKeyexprToString(this);
+                string output = Marshal.PtrToStringAnsi(ptr);
+                // should free ptr
+                return output;
+            }
         }
 
         internal NativeType native;
-        internal string key;
+        private IntPtr _key_buf;
+        private bool _disposed;
 
-        internal KeyExpr(NativeType native, string key)
+        public void Dispose() => Dispose(true);
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (_disposed) return;
+            Marshal.FreeHGlobal(this._key_buf);
+            _disposed = true;
+        }
+
+        internal KeyExpr(NativeType native, IntPtr keyBuf)
         {
             this.native = native;
-            this.key = key;
+            this._key_buf = keyBuf;
+            this._disposed = false;
         }
 
         public static KeyExpr FromString(string name)
         {
             IntPtr p = Marshal.StringToHGlobalAnsi(name);
             NativeType keyexpr = ZKeyexpr(p);
-            Marshal.FreeHGlobal(p);
-            return new KeyExpr(keyexpr,name);
+            //Marshal.FreeHGlobal(p);
+            return new KeyExpr(keyexpr, p);
         }
 
         public string GetStr()
         {
-            //IntPtr ptr = ZKeyexprToString(native);
-            //string output = Marshal.PtrToStringAnsi(ptr);
-            return this.key;
+            return native.GetStr();
         }
 
         [DllImport(Zenoh.DllName, EntryPoint = "z_keyexpr", CallingConvention = CallingConvention.Cdecl)]
         internal static extern NativeType ZKeyexpr(IntPtr name);
-        
+
         [DllImport(Zenoh.DllName, EntryPoint = "z_keyexpr_to_string", CallingConvention = CallingConvention.Cdecl)]
         internal static extern IntPtr ZKeyexprToString(NativeType keyexpr);
     }
@@ -333,12 +363,16 @@ namespace Zenoh
 
     public class Sample
     {
-        [StructLayout(LayoutKind.Explicit)]
+        //[StructLayout(LayoutKind.Explicit)]
+        //[FieldOffset(0)]
+        [StructLayout(LayoutKind.Sequential)]
         public struct NativeType // z_owned_sample_t
         {
-            [FieldOffset(0)] internal KeyExpr.NativeType key;
-            [FieldOffset(24)] internal ZBytes value;
-            [FieldOffset(48)] internal ZEncoding encoding;
+            internal KeyExpr.NativeType keyexpr;
+            internal ZBytes payload;
+            internal ZEncoding encoding;
+            internal ZSampleKind kind;
+            internal ZTimestamp timestamp;
         }
 
         public string Key { get; }
@@ -347,8 +381,8 @@ namespace Zenoh
 
         internal Sample(NativeType sample)
         {
-            Key = Marshal.PtrToStringAnsi(sample.key.suffix.start, (int)sample.key.suffix.len);
-            Value = ZTypes.ZBytesToBytesArray(sample.value);
+            Key = sample.keyexpr.GetStr();
+            Value = ZTypes.ZBytesToBytesArray(sample.payload);
             Encoding = sample.encoding;
         }
 
@@ -357,9 +391,6 @@ namespace Zenoh
             string result = System.Text.Encoding.UTF8.GetString(Value, 0, Value.Length);
             return result;
         }
-
-        [DllImport(Zenoh.DllName, EntryPoint = "z_sample_free", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern void ZSampleFree(ref NativeType sample);
     }
 
     public class ReplayData
@@ -384,6 +415,7 @@ namespace Zenoh
         }
     }
 
+    /*
     public class ReplayDataArray
     {
         [StructLayout(LayoutKind.Sequential)]
@@ -423,39 +455,7 @@ namespace Zenoh
         [DllImport(Zenoh.DllName, EntryPoint = "z_reply_data_array_free", CallingConvention = CallingConvention.Cdecl)]
         internal static extern void ZReplyDataArrayFree(ref NativeType replies);
     }
-
-    public class SubInfo
-    {
-        [StructLayout(LayoutKind.Sequential)]
-        public struct NativeType // z_subinfo_t
-        {
-            public Reliability reliability;
-            public SubMode mode;
-            public Period period;
-        }
-
-        internal NativeType native;
-
-        public SubInfo()
-        {
-            this.native = ZSubInfoDefault();
-        }
-
-        public SubInfo(SubMode mode) : this()
-        {
-            this.native.mode = mode;
-        }
-
-        public SubInfo(Reliability reliability, SubMode mode) : this()
-        {
-            native.reliability = reliability;
-            native.mode = mode;
-        }
-
-        [DllImport(Zenoh.DllName, EntryPoint = "z_subinfo_default", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern NativeType ZSubInfoDefault();
-    }
-
+    */
 
     internal static class ZTypes
     {
