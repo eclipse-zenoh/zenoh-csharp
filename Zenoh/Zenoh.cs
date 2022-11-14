@@ -260,7 +260,8 @@ namespace Zenoh
             {
                 IntPtr ptr = ZKeyexprToString(this);
                 string output = Marshal.PtrToStringAnsi(ptr);
-                // should free ptr
+                // should be free using libc free()
+                Marshal.FreeHGlobal(ptr);
                 return output;
             }
         }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -140,7 +141,7 @@ namespace Zenoh
             return output.ToArray();
         }
 
-        public bool Put(KeyExpr key, string s)
+        public bool PutStr(KeyExpr key, string s)
         {
             byte[] data = Encoding.UTF8.GetBytes(s);
             PutOptions options = new PutOptions();
@@ -152,14 +153,26 @@ namespace Zenoh
         {
             byte[] data = Encoding.UTF8.GetBytes(s);
             PutOptions options = new PutOptions();
-            options.SetEncoding(ZEncoding.New(ZEncodingPrefix.TextJson));
+            options.SetEncoding(ZEncoding.New(ZEncodingPrefix.AppJson));
             return _Put(key, data, ref options);
         }
 
-//        public bool Put(KeyExpr key, Int64 value) { }
-        
- //       public bool Put(KeyExpr key, double value){ }
-        
+        public bool PutInt(KeyExpr key, Int64 value)
+        {
+            byte[] data = Encoding.UTF8.GetBytes(value.ToString());
+            PutOptions options = new PutOptions();
+            options.SetEncoding(ZEncoding.New(ZEncodingPrefix.AppInteger));
+            return _Put(key, data, ref options);
+        }
+
+        public bool PutFloat(KeyExpr key, double value)
+        {
+            string s = value.ToString();
+            byte[] data = Encoding.UTF8.GetBytes(s);
+            PutOptions options = new PutOptions();
+            options.SetEncoding(ZEncoding.New(ZEncodingPrefix.AppFloat));
+            return _Put(key, data, ref options);
+        }
 
         protected bool _Put(KeyExpr key, byte[] value, ref PutOptions options)
         {
@@ -167,14 +180,7 @@ namespace Zenoh
             Marshal.Copy(value, 0, v, value.Length);
             int r = ZPut(ref native, key.native, v, (ulong)value.Length, ref options.native);
             Marshal.FreeHGlobal(v);
-            if (r == 1)
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+            return r == 1;
         }
 
         /*
