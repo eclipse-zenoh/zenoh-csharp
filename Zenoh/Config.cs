@@ -64,6 +64,20 @@ namespace Zenoh
             value += "]";
             return InsertJson(key, value);
         }
+        
+        // The v such as "tcp/127.0.0.1:7888"
+        public bool SetListen(string[] v)
+        {
+            string key = "listen/endpoints";
+            string value = "[";
+            foreach (var ele in v)
+            {
+                value += $"\"{ele}\",";
+            }
+
+            value += "]";
+            return InsertJson(key, value);
+        }
 
         public bool SetMode(Mode mode)
         {

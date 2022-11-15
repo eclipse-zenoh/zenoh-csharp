@@ -42,7 +42,9 @@ namespace Zenoh
 
         internal KeyExpr key;
         internal NativeType nativeSubscriber;
-        internal SubscriberCallback userCallback;
+        internal SubscriberCallback userCallback = null;
+        internal ZOwnedClosureSampleCallback sampleCallback = null;
+        internal ZOwnedClosureSampleDrop sampleDrop = null;
         internal ZClosureSample closure;
 
         public Subscriber(string key, SubscriberCallback userCallback)
@@ -50,7 +52,8 @@ namespace Zenoh
             this.key = KeyExpr.FromString(key);
             this.nativeSubscriber.p = IntPtr.Zero;
             this.userCallback = userCallback;
-            ZOwnedClosureSampleCallback call = SubscriberNativeCallbackImpl;
+            ZOwnedClosureSampleCallback call = new ZOwnedClosureSampleCallback(SubscriberNativeCallbackImpl);
+            sampleCallback = call;
             this.closure = new ZClosureSample(call, null, IntPtr.Zero);
         }
 
