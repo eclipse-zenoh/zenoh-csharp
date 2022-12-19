@@ -4,7 +4,7 @@ using Zenoh;
 
 Zenoh.Zenoh.InitLogger();
 Config config = new Config();
-string[] connect = { "tcp/172.19.94.129:7447" };
+string[] connect = { "tcp/127.0.0.1:7447" };
 config.SetConnect(connect);
 Session session = new Session();
 

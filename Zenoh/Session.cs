@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -180,7 +179,7 @@ namespace Zenoh
             Marshal.Copy(value, 0, v, value.Length);
             int r = ZPut(ref native, key.native, v, (ulong)value.Length, ref options.native);
             Marshal.FreeHGlobal(v);
-            return r == 1;
+            return r == 0;
         }
 
         /*

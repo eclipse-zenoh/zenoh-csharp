@@ -5,10 +5,10 @@ using Zenoh;
 
 //Zenoh.Zenoh.InitLogger();
 Config config = new Config();
-//string[] connect = {"tcp/172.30.100.3:7447"};
-//config.SetConnect(connect);
-string[] listen = {"tcp/127.0.0.1:7888"};
-config.SetListen(listen);
+string[] connect = {"tcp/127.0.0.1:7447"};
+config.SetConnect(connect);
+//string[] listen = {"tcp/127.0.0.1:7888"};
+//config.SetListen(listen);
 Session session = new Session();
 
 Console.WriteLine("Opening session...");
@@ -25,10 +25,10 @@ else
 
 void Callback1(Sample sample)
 {
-    //string key = sample.Key;
-    //string value = sample.ValueToString();
-    //Console.WriteLine($">> [Subscriber1] Received PUT ('{key}': '{value}')");
-    Console.Write(".");
+    string key = sample.Key;
+    string value = sample.ValueToString();
+    Console.WriteLine($">> [Subscriber1] Received PUT ('{key}': '{value}')");
+    //Console.Write(".");
 }
 
 void Callback2(Sample sample)
