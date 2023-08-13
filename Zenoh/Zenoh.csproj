@@ -11,10 +11,10 @@
         <RepositoryUrl>https://github.com/sanri/zenoh-csharp</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
         <OutputType>Library</OutputType>
-        <TargetFramework>net6.0</TargetFramework>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <LangVersion>10</LangVersion>
         <PackageVersion>0.0.6</PackageVersion>
         <PackageTags>zenoh</PackageTags>
+        <TargetFrameworks>net7.0;net6.0</TargetFrameworks>
     </PropertyGroup>
 </Project>

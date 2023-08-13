@@ -76,9 +76,9 @@ namespace Zenoh
             int len = Marshal.ReadByte(buf);
             for (int i = 0; i < len; i++)
             {
-                byte[] b = new byte[Zenoh.IdLength];
-                Marshal.Copy(buf + 1 + Zenoh.IdLength * i, b, 0, Zenoh.IdLength);
-                list.Add(Zenoh.IdBytesToStr(b));
+                byte[] b = new byte[ZenohC.IdLength];
+                Marshal.Copy(buf + 1 + ZenohC.IdLength * i, b, 0, ZenohC.IdLength);
+                list.Add(ZenohC.IdBytesToStr(b));
             }
 
             return list;
@@ -87,18 +87,18 @@ namespace Zenoh
         private static void InfoZidCallback(ref Zid zid, IntPtr buf)
         {
             int i = Marshal.ReadByte(buf);
-            if (i >= Zenoh.RoutersNum)
+            if (i >= ZenohC.RoutersNum)
             {
                 return;
             }
 
-            Marshal.Copy(zid.id, 0, buf + 1 + Zenoh.IdLength * i, Zenoh.IdLength);
+            Marshal.Copy(zid.id, 0, buf + 1 + ZenohC.IdLength * i, ZenohC.IdLength);
             Marshal.WriteByte(buf, (byte)(i + 1));
         }
 
         public string[] RoutersZid()
         {
-            int length = 1 + Zenoh.IdLength * Zenoh.RoutersNum;
+            int length = 1 + ZenohC.IdLength * ZenohC.RoutersNum;
             IntPtr buffer = Marshal.AllocHGlobal(length);
             for (int i = 0; i < length; i++)
             {
@@ -120,7 +120,7 @@ namespace Zenoh
 
         public string[] PeersZid()
         {
-            int length = 1 + Zenoh.IdLength * Zenoh.PeersNum;
+            int length = 1 + ZenohC.IdLength * ZenohC.PeersNum;
             IntPtr buffer = Marshal.AllocHGlobal(length);
             for (int i = 0; i < length; i++)
             {
@@ -227,37 +227,37 @@ namespace Zenoh
             Subscribers.Remove(key);
         }
 
-        [DllImport(Zenoh.DllName, EntryPoint = "z_open", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(ZenohC.DllName, EntryPoint = "z_open", CallingConvention = CallingConvention.Cdecl)]
         internal static extern NativeType ZOpen(ref Config.NativeType config);
 
-        [DllImport(Zenoh.DllName, EntryPoint = "z_session_check", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(ZenohC.DllName, EntryPoint = "z_session_check", CallingConvention = CallingConvention.Cdecl)]
         internal static extern bool ZSessionCheck(ref NativeType session);
 
-        [DllImport(Zenoh.DllName, EntryPoint = "z_close", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(ZenohC.DllName, EntryPoint = "z_close", CallingConvention = CallingConvention.Cdecl)]
         internal static extern void ZClose(ref NativeType session);
 
-        [DllImport(Zenoh.DllName, EntryPoint = "z_info_zid", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(ZenohC.DllName, EntryPoint = "z_info_zid", CallingConvention = CallingConvention.Cdecl)]
         internal static extern Zid ZInfoZid(ref NativeType session);
 
-        [DllImport(Zenoh.DllName, EntryPoint = "z_info_peers_zid", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(ZenohC.DllName, EntryPoint = "z_info_peers_zid", CallingConvention = CallingConvention.Cdecl)]
         internal static extern sbyte ZInfoPeersZid(ref NativeType session, ref ZClosureZid callback);
 
-        [DllImport(Zenoh.DllName, EntryPoint = "z_info_routers_zid", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(ZenohC.DllName, EntryPoint = "z_info_routers_zid", CallingConvention = CallingConvention.Cdecl)]
         internal static extern sbyte ZInfoRoutersZid(ref NativeType session, ref ZClosureZid callback);
 
-        [DllImport(Zenoh.DllName, EntryPoint = "z_put", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(ZenohC.DllName, EntryPoint = "z_put", CallingConvention = CallingConvention.Cdecl)]
         internal static extern int ZPut(ref NativeType session, KeyExpr.NativeType keyexpr, IntPtr payload, ulong len,
             ref PutOptions.NativeType opts);
 
-        [DllImport(Zenoh.DllName, EntryPoint = "z_subscriber_check")]
+        [DllImport(ZenohC.DllName, EntryPoint = "z_subscriber_check")]
         internal static extern bool ZSubscriberCheck(ref Subscriber.NativeType sub);
 
-        [DllImport(Zenoh.DllName, EntryPoint = "z_declare_subscriber")]
+        [DllImport(ZenohC.DllName, EntryPoint = "z_declare_subscriber")]
         internal static extern Subscriber.NativeType ZDeclareSubscribe(ref NativeType session,
             KeyExpr.NativeType keyexpr,
             ref ZClosureSample callback, ref Subscriber.Options opts);
 
-        [DllImport(Zenoh.DllName, EntryPoint = "z_subscriber_close")]
+        [DllImport(ZenohC.DllName, EntryPoint = "z_subscriber_close")]
         internal static extern void ZSubscriberClose(ref Subscriber.NativeType sub);
 
         /*

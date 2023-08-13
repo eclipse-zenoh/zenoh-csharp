@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <AssemblyName>ZInfo</AssemblyName>
+        <PackageId>ZInfo</PackageId>
+        <OutputType>Exe</OutputType>
+        <EnableDefaultItems>false</EnableDefaultItems>
+        <LangVersion>10</LangVersion>
+        <TargetFrameworks>net7.0;net6.0</TargetFrameworks>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\Zenoh\Zenoh.csproj"/>
+        <Compile Include="ZInfo.cs"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="PowerArgs" Version="3.6.0"/>
+    </ItemGroup>
+
+</Project>

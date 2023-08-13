@@ -68,7 +68,7 @@ namespace Zenoh
             return ZSubScriberOptionsDefault();
         }
 
-        [DllImport(Zenoh.DllName, EntryPoint = "z_subscriber_options_default")]
+        [DllImport(ZenohC.DllName, EntryPoint = "z_subscriber_options_default")]
         internal static extern Options ZSubScriberOptionsDefault();
     }
 }

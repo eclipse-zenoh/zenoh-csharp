@@ -20,11 +20,11 @@ using System.Text;
 
 namespace Zenoh
 {
-    public static class Zenoh
+    public static class ZenohC
     {
         public const string DllName = "zenohc";
 
-        [DllImport(Zenoh.DllName, EntryPoint = "zc_init_logger")]
+        [DllImport(ZenohC.DllName, EntryPoint = "zc_init_logger")]
         public static extern void InitLogger();
 
         public static string IdBytesToStr(byte[] buf)
@@ -160,7 +160,7 @@ namespace Zenoh
             return FnZEncoding(prefix, IntPtr.Zero);
         }
 
-        [DllImport(Zenoh.DllName, EntryPoint = "z_encoding", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(ZenohC.DllName, EntryPoint = "z_encoding", CallingConvention = CallingConvention.Cdecl)]
         internal static extern ZEncoding FnZEncoding(ZEncodingPrefix prefix, IntPtr suffix);
     }
 
@@ -187,7 +187,7 @@ namespace Zenoh
 
         public string ToStr()
         {
-            return Zenoh.IdBytesToStr(id);
+            return ZenohC.IdBytesToStr(id);
         }
     }
 
@@ -223,7 +223,7 @@ namespace Zenoh
             native.priority = priority;
         }
 
-        [DllImport(Zenoh.DllName, EntryPoint = "z_put_options_default", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(ZenohC.DllName, EntryPoint = "z_put_options_default", CallingConvention = CallingConvention.Cdecl)]
         private static extern NativeType ZPutOptionsDefault();
     }
 
@@ -299,10 +299,10 @@ namespace Zenoh
             return native.GetStr();
         }
 
-        [DllImport(Zenoh.DllName, EntryPoint = "z_keyexpr", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(ZenohC.DllName, EntryPoint = "z_keyexpr", CallingConvention = CallingConvention.Cdecl)]
         internal static extern NativeType ZKeyexpr(IntPtr name);
 
-        [DllImport(Zenoh.DllName, EntryPoint = "z_keyexpr_to_string", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(ZenohC.DllName, EntryPoint = "z_keyexpr_to_string", CallingConvention = CallingConvention.Cdecl)]
         internal static extern IntPtr ZKeyexprToString(NativeType keyexpr);
     }
 
@@ -328,7 +328,7 @@ namespace Zenoh
             this.native = ZQueryTargetDefault();
         }
 
-        [DllImport(Zenoh.DllName, EntryPoint = "z_query_target_default", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(ZenohC.DllName, EntryPoint = "z_query_target_default", CallingConvention = CallingConvention.Cdecl)]
         internal static extern NativeType ZQueryTargetDefault();
     }
 
@@ -357,7 +357,7 @@ namespace Zenoh
             this.native = ZQueryConsolidationDefault();
         }
 
-        [DllImport(Zenoh.DllName, EntryPoint = "z_query_consolidation_default",
+        [DllImport(ZenohC.DllName, EntryPoint = "z_query_consolidation_default",
             CallingConvention = CallingConvention.Cdecl)]
         internal static extern QueryConsolidation.NativeType ZQueryConsolidationDefault();
     }
@@ -480,13 +480,13 @@ namespace Zenoh
             return Marshal.PtrToStringAnsi(zs.start);
         }
 
-        [DllImport(Zenoh.DllName, EntryPoint = "z_string_free", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(ZenohC.DllName, EntryPoint = "z_string_free", CallingConvention = CallingConvention.Cdecl)]
         internal static extern void ZStringFree(ref ZString s);
 
-        [DllImport(Zenoh.DllName, EntryPoint = "z_string_check", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(ZenohC.DllName, EntryPoint = "z_string_check", CallingConvention = CallingConvention.Cdecl)]
         internal static extern bool ZStringCheck(ref ZString s);
 
-        [DllImport(Zenoh.DllName, EntryPoint = "z_bytes_free", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport(ZenohC.DllName, EntryPoint = "z_bytes_free", CallingConvention = CallingConvention.Cdecl)]
         internal static extern void ZBytesFree(ref ZString s);
     }
 }
