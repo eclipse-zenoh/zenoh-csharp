@@ -1,46 +1,66 @@
-﻿using System;
+﻿#nullable enable
+
+using System;
 using System.Threading;
 using Zenoh;
 
-Zenoh.ZenohC.InitLogger();
-Config config = new Config();
-string[] connect = { "tcp/127.0.0.1:7447" };
-config.SetConnect(connect);
-Session session = new Session();
+// Config config = new Config();
+// if (!config.SetMode(Config.Mode.Client))
+// {
+//     Console.WriteLine("Config set mode fail");
+//     return;
+// }
+// string[] connect = { "tcp/127.0.0.1:7447" };
+// if (!config.SetConnect(connect))
+// {
+//     Console.WriteLine("Config set connect fail");
+//     return;
+// }
+//string[] listen = {"tcp/127.0.0.1:7888"};
+//config.SetListen(listen);
 
-Console.WriteLine("Opening session...");
-if (session.Open(config))
+Config? c = Config.LoadFromFile("../../../../zenoh.json5");
+if (c == null)
 {
-    Thread.Sleep(200);
-}
-else
-{
-    Console.WriteLine("Opening session unsuccessful");
+    Console.WriteLine("Load config error!");
     return;
 }
 
-KeyExpr keyStr = KeyExpr.FromString("demo/example/zenoh-cs-put/string");
+Config config = c;
+
+Console.WriteLine("Opening session...");
+var session = Session.Open(config);
+if (session is null)
+{
+    Console.WriteLine("Opening session unsuccessful!");
+    return;
+}
+
+Thread.Sleep(200);
+Console.WriteLine("Opening session successful!");
+
+string keyStr = "demo/example/zenoh-cs-put/string";
 string dataStr = "Put from csharp !";
 Console.WriteLine(session.PutStr(keyStr, dataStr)
-    ? $"Putting data string ('{keyStr.GetStr()}': '{dataStr}')"
+    ? $"Putting data string ('{keyStr}': '{dataStr}')"
     : "Putting data string fault!");
 
-KeyExpr keyJson = KeyExpr.FromString("demo/example/zenoh-cs-put/json");
+string keyJson = "demo/example/zenoh-cs-put/json";
 string dataJson = "{\"value\": \"Put from csharp\"}";
 Console.WriteLine(session.PutJson(keyJson, dataJson)
-    ? $"Putting data json ('{keyJson.GetStr()}': {dataJson})"
+    ? $"Putting data json ('{keyJson}': {dataJson})"
     : "Putting data json fault!");
 
-KeyExpr keyInt = KeyExpr.FromString("demo/example/zenoh-cs-put/int");
-Int64 dataInt = 965;
+string keyInt = "demo/example/zenoh-cs-put/int";
+long dataInt = 965;
 Console.WriteLine(session.PutInt(keyInt, dataInt)
-    ? $"Putting data int ('{keyInt.GetStr()}': {dataInt})"
+    ? $"Putting data int ('{keyInt}': {dataInt})"
     : "Putting data int fault!");
 
-KeyExpr keyFloat = KeyExpr.FromString("demo/example/zenoh-cs-put/float");
+string keyFloat = "demo/example/zenoh-cs-put/float";
 double dataFloat = 99.6;
 Console.WriteLine(session.PutFloat(keyFloat, dataFloat)
-    ? $"Putting data float ('{keyFloat.GetStr()}': {dataFloat})"
+    ? $"Putting data float ('{keyFloat}': {dataFloat})"
     : "Putting data float fault!");
 
 session.Close();

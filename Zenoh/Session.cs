@@ -1,270 +1,380 @@
+#pragma warning disable CS8500
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 
-namespace Zenoh
+namespace Zenoh;
+
+public class Session : IDisposable
 {
-    public class Session : IDisposable
+    internal SortedDictionary<int, Subscriber> subscribers;
+    private int _indexSubscriber = 1;
+    private bool _disposed;
+    private readonly unsafe ZOwnedSession* _session;
+
+    private unsafe Session(ZOwnedSession* session)
     {
-        [StructLayout(LayoutKind.Sequential)]
-        internal struct NativeType // z_owned_session_t
+        subscribers = new SortedDictionary<int, Subscriber>();
+        _disposed = false;
+        _session = session;
+    }
+
+    public static Session? Open(Config config)
+    {
+        unsafe
         {
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 3)]
-            public IntPtr[] p;
-        }
-
-        internal NativeType native;
-        internal Dictionary<string, Subscriber> Subscribers;
-
-        public Session()
-        {
-            this.native = new NativeType();
-            this.Subscribers = new Dictionary<string, Subscriber>();
-        }
-
-        public void Dispose() => Dispose(true);
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (native.p[0] != IntPtr.Zero)
+            ZOwnedSession session = ZenohC.z_open(config.ownedConfig);
+            if (ZenohC.z_session_check(&session) != 1)
             {
-                foreach (Subscriber s in Subscribers.Values)
+                return null;
+            }
+
+            nint p = Marshal.AllocHGlobal(Marshal.SizeOf(session));
+            Marshal.StructureToPtr(session, p, false);
+
+            return new Session((ZOwnedSession*)p);
+        }
+    }
+
+
+    public void Close()
+    {
+        if (_disposed) return;
+
+        unsafe
+        {
+            foreach ((_, Subscriber subscriber) in subscribers)
+            {
+                ZenohC.z_undeclare_subscriber(subscriber.ownedSubscriber);
+                Marshal.FreeHGlobal((nint)subscriber.ownedSubscriber);
+                subscriber.ownedSubscriber = null;
+            }
+
+            subscribers.Clear();
+
+            ZenohC.z_close(_session);
+            Marshal.FreeHGlobal((nint)_session);
+        }
+
+        _disposed = true;
+    }
+
+    public void Dispose() => Dispose(true);
+
+    private void Dispose(bool disposing)
+    {
+        Close();
+    }
+
+
+    // private static List<string> GetIdStrings(IntPtr buf)
+    // {
+    //     List<string> list = new List<string>();
+    //     int len = Marshal.ReadByte(buf);
+    //     for (int i = 0; i < len; i++)
+    //     {
+    //         // byte[] b = new byte[ZenohC.IdLength];
+    //         // Marshal.Copy(buf + 1 + ZenohC.IdLength * i, b, 0, ZenohC.IdLength);
+    //         // list.Add(ZenohC.IdBytesToStr(b));
+    //     }
+    //
+    //     return list;
+    // }
+
+    // private static void InfoZidCallback(ref Zid zid, IntPtr buf)
+    // {
+    //     int i = Marshal.ReadByte(buf);
+    //     if (i >= ZenohC.RoutersNum)
+    //     {
+    //         return;
+    //     }
+    //
+    //     Marshal.Copy(zid.id, 0, buf + 1 + ZenohC.IdLength * i, ZenohC.IdLength);
+    //     Marshal.WriteByte(buf, (byte)(i + 1));
+    // }
+
+    public struct Id
+    {
+        internal byte[] data;
+
+        internal Id(ZId zid)
+        {
+            data = new byte[16];
+            for (int i = 0; i < 16; i++)
+            {
+                unsafe
                 {
-                    // free
+                    data[i] = zid.id[i];
+                }
+            }
+        }
+
+        public string ToStr()
+        {
+            StringBuilder sb = new StringBuilder();
+            foreach (byte b in data)
+            {
+                sb.Append(b.ToString("x"));
+            }
+
+            return sb.ToString();
+        }
+    }
+
+    public Id LocalId()
+    {
+        unsafe
+        {
+            ZSession session = ZenohC.z_session_loan(_session);
+            ZId zid = ZenohC.z_info_zid(session);
+            return new Id(zid);
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 8)]
+    private unsafe struct ZIdBuffer
+    {
+        internal nuint count;
+        internal fixed byte data[256 * 16];
+
+        public ZIdBuffer()
+        {
+            count = 0;
+        }
+
+        internal void Add(ZId* zId)
+        {
+            if (count >= 256) return;
+            for (nuint i = 0; i < 16; i++)
+            {
+                data[count * 16 + i] = zId->id[i];
+            }
+
+            count += 1;
+        }
+
+        internal Id[] ToIds()
+        {
+            Id[] ids = new Id[count];
+            for (nuint i = 0; i < count; i++)
+            {
+                byte[] o = new byte[16];
+                for (nuint j = 0; j < 16; j++)
+                {
+                    o[j] = data[i * 16 + j];
                 }
 
-                Subscribers.Clear();
-
-                ZClose(ref native);
-                for (int i = 0; i < 3; i++)
+                Id id = new Id
                 {
-                    native.p[i] = IntPtr.Zero;
-                }
+                    data = o,
+                };
+                ids[i] = id;
             }
-        }
 
-        public bool Open(Config config)
+            return ids;
+        }
+    }
+
+    internal static unsafe void z_id_call(ZId* zId, void* context)
+    {
+        ZIdBuffer* pIdBuffer = (ZIdBuffer*)context;
+        pIdBuffer->Add(zId);
+    }
+
+    public Id[] RoutersId()
+    {
+        unsafe
         {
-            NativeType s = ZOpen(ref config.native);
-            if (ZSessionCheck(ref s))
+            ZSession session = ZenohC.z_session_loan(_session);
+            nint pIdBuffer = Marshal.AllocHGlobal(Marshal.SizeOf<ZIdBuffer>());
+            ZOwnedClosureZId ownedClosureZId = new ZOwnedClosureZId
             {
-                this.native = s;
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+                context = (void*)pIdBuffer,
+                call = z_id_call,
+                drop = null,
+            };
+            nint pOwnedClosureZId = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedClosureZId>());
+            Marshal.StructureToPtr(ownedClosureZId, pOwnedClosureZId, false);
+
+            ZenohC.z_info_routers_zid(session, (ZOwnedClosureZId*)pOwnedClosureZId);
+
+            ZIdBuffer zIdBuffer;
+            zIdBuffer = (ZIdBuffer)Marshal.PtrToStructure(pIdBuffer, typeof(ZIdBuffer));
+            Id[] ids = zIdBuffer.ToIds();
+
+            Marshal.FreeHGlobal(pOwnedClosureZId);
+            Marshal.FreeHGlobal(pIdBuffer);
+            return ids;
         }
+    }
 
-        public void Close()
-        {
-            ZClose(ref native);
-        }
+    // public Id[] PeersId()
+    // {
+    // }
 
-        public string LocalZid()
-        {
-            Zid zid = ZInfoZid(ref native);
-            return zid.ToStr();
-        }
+    public bool PutStr(string key, string value)
+    {
+        return PutStr(key, value, CongestionControl.Block, Priority.RealTime);
+    }
 
-
-        private static List<string> GetIdStrings(IntPtr buf)
-        {
-            List<string> list = new List<string>();
-            int len = Marshal.ReadByte(buf);
-            for (int i = 0; i < len; i++)
-            {
-                byte[] b = new byte[ZenohC.IdLength];
-                Marshal.Copy(buf + 1 + ZenohC.IdLength * i, b, 0, ZenohC.IdLength);
-                list.Add(ZenohC.IdBytesToStr(b));
-            }
-
-            return list;
-        }
-
-        private static void InfoZidCallback(ref Zid zid, IntPtr buf)
-        {
-            int i = Marshal.ReadByte(buf);
-            if (i >= ZenohC.RoutersNum)
-            {
-                return;
-            }
-
-            Marshal.Copy(zid.id, 0, buf + 1 + ZenohC.IdLength * i, ZenohC.IdLength);
-            Marshal.WriteByte(buf, (byte)(i + 1));
-        }
-
-        public string[] RoutersZid()
-        {
-            int length = 1 + ZenohC.IdLength * ZenohC.RoutersNum;
-            IntPtr buffer = Marshal.AllocHGlobal(length);
-            for (int i = 0; i < length; i++)
-            {
-                Marshal.WriteByte(buffer, i, 0);
-            }
-
-            ZClosureZid closure = new ZClosureZid(InfoZidCallback, buffer);
-            sbyte r = ZInfoRoutersZid(ref native, ref closure);
-            if (r != 0)
-            {
-                return Array.Empty<string>();
-            }
-
-            var output = GetIdStrings(buffer);
-
-            Marshal.FreeHGlobal(buffer);
-            return output.ToArray();
-        }
-
-        public string[] PeersZid()
-        {
-            int length = 1 + ZenohC.IdLength * ZenohC.PeersNum;
-            IntPtr buffer = Marshal.AllocHGlobal(length);
-            for (int i = 0; i < length; i++)
-            {
-                Marshal.WriteByte(buffer, i, 0);
-            }
-
-            ZClosureZid closure = new ZClosureZid(InfoZidCallback, buffer);
-            sbyte r = ZInfoPeersZid(ref native, ref closure);
-            if (r != 0)
-            {
-                return Array.Empty<string>();
-            }
-
-            var output = GetIdStrings(buffer);
-
-            Marshal.FreeHGlobal(buffer);
-            return output.ToArray();
-        }
-
-        public bool PutStr(KeyExpr key, string s)
+    public bool PutStr(string key, string s, CongestionControl congestionControl, Priority priority)
+    {
+        unsafe
         {
             byte[] data = Encoding.UTF8.GetBytes(s);
-            PutOptions options = new PutOptions();
-            options.SetEncoding(ZEncoding.New(ZEncodingPrefix.TextPlain));
-            return _Put(key, data, ref options);
+            ZPutOptions options = new ZPutOptions
+            {
+                encoding = ZenohC.z_encoding(EncodingPrefix.TextPlain, null),
+                congestionControl = congestionControl,
+                priority = priority,
+            };
+            return _put(key, data, options);
         }
-        
-        public bool PutJson(KeyExpr key, string s)
+    }
+
+    public bool PutJson(string key, string value)
+    {
+        return PutJson(key, value, CongestionControl.Block, Priority.RealTime);
+    }
+
+    public bool PutJson(string key, string s, CongestionControl congestionControl, Priority priority)
+    {
+        unsafe
         {
             byte[] data = Encoding.UTF8.GetBytes(s);
-            PutOptions options = new PutOptions();
-            options.SetEncoding(ZEncoding.New(ZEncodingPrefix.AppJson));
-            return _Put(key, data, ref options);
+            ZPutOptions options = new ZPutOptions
+            {
+                encoding = ZenohC.z_encoding(EncodingPrefix.AppJson, null),
+                congestionControl = congestionControl,
+                priority = priority,
+            };
+            return _put(key, data, options);
         }
+    }
 
-        public bool PutInt(KeyExpr key, Int64 value)
-        {
-            byte[] data = Encoding.UTF8.GetBytes(value.ToString());
-            PutOptions options = new PutOptions();
-            options.SetEncoding(ZEncoding.New(ZEncodingPrefix.AppInteger));
-            return _Put(key, data, ref options);
-        }
+    public bool PutInt(string key, long value)
+    {
+        return PutInt(key, value, CongestionControl.Block, Priority.RealTime);
+    }
 
-        public bool PutFloat(KeyExpr key, double value)
+    public bool PutInt(string key, long value, CongestionControl congestionControl, Priority priority)
+    {
+        unsafe
         {
-            string s = value.ToString();
+            string s = value.ToString("G");
             byte[] data = Encoding.UTF8.GetBytes(s);
-            PutOptions options = new PutOptions();
-            options.SetEncoding(ZEncoding.New(ZEncodingPrefix.AppFloat));
-            return _Put(key, data, ref options);
+            ZPutOptions options = new ZPutOptions
+            {
+                encoding = ZenohC.z_encoding(EncodingPrefix.AppInteger, null),
+                congestionControl = congestionControl,
+                priority = priority,
+            };
+            return _put(key, data, options);
         }
+    }
 
-        protected bool _Put(KeyExpr key, byte[] value, ref PutOptions options)
+    public bool PutFloat(string key, double value)
+    {
+        return PutFloat(key, value, CongestionControl.Block, Priority.RealTime);
+    }
+
+    public bool PutFloat(string key, double value, CongestionControl congestionControl, Priority priority)
+    {
+        unsafe
         {
-            IntPtr v = Marshal.AllocHGlobal(value.Length);
-            Marshal.Copy(value, 0, v, value.Length);
-            int r = ZPut(ref native, key.native, v, (ulong)value.Length, ref options.native);
-            Marshal.FreeHGlobal(v);
+            string s = value.ToString("G");
+            byte[] data = Encoding.UTF8.GetBytes(s);
+            ZPutOptions options = new ZPutOptions
+            {
+                encoding = ZenohC.z_encoding(EncodingPrefix.AppFloat, null),
+                congestionControl = congestionControl,
+                priority = priority,
+            };
+            return _put(key, data, options);
+        }
+    }
+
+    private bool _put(string key, byte[] value, ZPutOptions options)
+    {
+        if (_disposed) return false;
+        unsafe
+        {
+            nint pv = Marshal.AllocHGlobal(value.Length);
+            nuint len = (nuint)value.Length;
+            Marshal.Copy(value, 0, pv, value.Length);
+            nint pKey = Marshal.StringToHGlobalAnsi(key);
+            ZSession session = ZenohC.z_session_loan(_session);
+            ZKeyexpr keyexpr = ZenohC.z_keyexpr((byte*)pKey);
+            int r = ZenohC.z_put(session, keyexpr, (byte*)pv, len, &options);
+            Marshal.FreeHGlobal(pv);
+            Marshal.FreeHGlobal(pKey);
             return r == 0;
         }
+    }
 
-        /*
-        public ReplayDataArray Get(KeyExpr key)
+    public SubscriberHandle? RegisterSubscriber(Subscriber subscriber)
+    {
+        unsafe
         {
-            QueryTarget target = new QueryTarget();
-            target.Target = ZTarget.All;
-            QueryConsolidation consolidation = new QueryConsolidation();
-            string v = "abc";
-            IntPtr predicate = Marshal.StringToHGlobalAnsi(v);
-            ReplayDataArray.NativeType nativeData =
-                ZGetCollect(ref native, key.native, predicate, target.native, consolidation.native);
-            Marshal.FreeHGlobal(predicate);
-            return new ReplayDataArray(nativeData);
-        }
-        */
-
-        public bool RegisterSubscriber(Subscriber subscriber)
-        {
-            return RegisterSubscriber(subscriber, Subscriber.GetOptionsDefault());
-        }
-
-        public bool RegisterSubscriber(Subscriber subscriber, Subscriber.Options options)
-        {
-            Subscriber.NativeType nativeSubscriber = ZDeclareSubscribe(ref native, subscriber.key.native,
-                ref subscriber.closure,
-                ref options);
-            if (ZSubscriberCheck(ref nativeSubscriber))
+            if (subscriber.ownedSubscriber != null)
             {
-                subscriber.nativeSubscriber = nativeSubscriber;
-                Subscribers[subscriber.key.GetStr()] = subscriber;
-                return true;
+                return null;
             }
-            else
+
+            ZSession session = ZenohC.z_session_loan(_session);
+            nint pKey = Marshal.StringToHGlobalAnsi(subscriber.keyexpr);
+            ZKeyexpr keyexpr = ZenohC.z_keyexpr((byte*)pKey);
+            ZSubscriberOptions options = new ZSubscriberOptions
             {
-                return false;
+                reliability = subscriber.reliability,
+            };
+            nint pOptions = Marshal.AllocHGlobal(Marshal.SizeOf<ZSubscriberOptions>());
+            Marshal.StructureToPtr(options, pOptions, false);
+            ZOwnedSubscriber sub =
+                ZenohC.z_declare_subscriber(session, keyexpr, subscriber.closureSample, (ZSubscriberOptions*)pOptions);
+            Marshal.FreeHGlobal(pOptions);
+            Marshal.FreeHGlobal(pKey);
+
+            if (ZenohC.z_subscriber_check(&sub) != 1)
+            {
+                return null;
             }
-        }
 
-        public void UnregisterSubscriber(string key)
+            nint pOwnedSubscriber = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedSubscriber>());
+            Marshal.StructureToPtr(sub, pOwnedSubscriber, false);
+            subscriber.ownedSubscriber = (ZOwnedSubscriber*)pOwnedSubscriber;
+
+            _indexSubscriber += 1;
+            subscribers.Add(_indexSubscriber, subscriber);
+
+            return new SubscriberHandle
+            {
+                handle = _indexSubscriber,
+            };
+        }
+    }
+
+    public void UnregisterSubscriber(SubscriberHandle handle)
+    {
+        UnregisterSubscriber(handle.handle);
+    }
+
+    private void UnregisterSubscriber(int handle)
+    {
+        if (subscribers.TryGetValue(handle, out Subscriber? subscriber))
         {
-            Subscriber subscriber = Subscribers[key];
-            // 目前执行这句会出问题, 还在解决中
-            // zSubscriberClose(ref subscriber.nativeSubscriber);
-            Subscribers.Remove(key);
+            unsafe
+            {
+                ZenohC.z_undeclare_subscriber(subscriber.ownedSubscriber);
+                Marshal.FreeHGlobal((nint)subscriber.ownedSubscriber);
+                subscriber.ownedSubscriber = null;
+            }
+
+            subscribers.Remove(handle);
         }
-
-        [DllImport(ZenohC.DllName, EntryPoint = "z_open", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern NativeType ZOpen(ref Config.NativeType config);
-
-        [DllImport(ZenohC.DllName, EntryPoint = "z_session_check", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern bool ZSessionCheck(ref NativeType session);
-
-        [DllImport(ZenohC.DllName, EntryPoint = "z_close", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern void ZClose(ref NativeType session);
-
-        [DllImport(ZenohC.DllName, EntryPoint = "z_info_zid", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern Zid ZInfoZid(ref NativeType session);
-
-        [DllImport(ZenohC.DllName, EntryPoint = "z_info_peers_zid", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern sbyte ZInfoPeersZid(ref NativeType session, ref ZClosureZid callback);
-
-        [DllImport(ZenohC.DllName, EntryPoint = "z_info_routers_zid", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern sbyte ZInfoRoutersZid(ref NativeType session, ref ZClosureZid callback);
-
-        [DllImport(ZenohC.DllName, EntryPoint = "z_put", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern int ZPut(ref NativeType session, KeyExpr.NativeType keyexpr, IntPtr payload, ulong len,
-            ref PutOptions.NativeType opts);
-
-        [DllImport(ZenohC.DllName, EntryPoint = "z_subscriber_check")]
-        internal static extern bool ZSubscriberCheck(ref Subscriber.NativeType sub);
-
-        [DllImport(ZenohC.DllName, EntryPoint = "z_declare_subscriber")]
-        internal static extern Subscriber.NativeType ZDeclareSubscribe(ref NativeType session,
-            KeyExpr.NativeType keyexpr,
-            ref ZClosureSample callback, ref Subscriber.Options opts);
-
-        [DllImport(ZenohC.DllName, EntryPoint = "z_subscriber_close")]
-        internal static extern void ZSubscriberClose(ref Subscriber.NativeType sub);
-
-        /*
-        [DllImport(Zenoh.DllName, EntryPoint = "z_get_collect", CallingConvention = CallingConvention.Cdecl)]
-        internal static extern ReplayDataArray.NativeType ZGetCollect(ref NativeType session,
-            KeyExpr.NativeType keyexpr, IntPtr predicate, QueryTarget.NativeType target,
-            QueryConsolidation.NativeType consolidation);
-        */
     }
 }

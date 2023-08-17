@@ -1,74 +1,78 @@
+#pragma warning disable CS8500
+
 using System;
 using System.Runtime.InteropServices;
 
-namespace Zenoh
+namespace Zenoh;
+
+public struct SubscriberHandle
 {
-    public delegate void SubscriberCallback(Sample sample);
+    internal int handle;
+}
 
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    internal delegate void ZOwnedClosureSampleCallback(ref Sample.NativeType sample, IntPtr context);
+public delegate void SubscriberCallback(Sample sample);
 
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    internal delegate void ZOwnedClosureSampleDrop(ref Sample.NativeType sample, IntPtr context);
+public class Subscriber : IDisposable
+{
+    internal readonly unsafe ZOwnedClosureSample* closureSample;
+    internal unsafe ZOwnedSubscriber* ownedSubscriber;
+    internal readonly string keyexpr;
+    internal readonly Reliability reliability;
+    private GCHandle _userCallbackGcHandle;
+    private bool _disposed;
 
-    [StructLayout(LayoutKind.Sequential)]
-    internal struct ZClosureSample // z_owned_closure_sample_t
+    public Subscriber(string key, SubscriberCallback userCallback)
+        : this(key, userCallback, Reliability.Reliable)
     {
-        internal IntPtr context;
-        internal ZOwnedClosureSampleCallback call;
-        internal ZOwnedClosureSampleDrop drop;
+    }
 
-        internal ZClosureSample(ZOwnedClosureSampleCallback call, ZOwnedClosureSampleDrop drop, IntPtr context)
+    public Subscriber(string key, SubscriberCallback userCallback, Reliability reliability)
+    {
+        unsafe
         {
-            this.call = call;
-            this.drop = drop;
-            this.context = context;
+            keyexpr = key;
+            _disposed = false;
+            this.reliability = reliability;
+            _userCallbackGcHandle = GCHandle.Alloc(userCallback);
+            ZOwnedClosureSample ownedClosureSample = new ZOwnedClosureSample
+            {
+                context = (void*)GCHandle.ToIntPtr(_userCallbackGcHandle),
+                call = Call,
+                drop = null,
+            };
+
+            nint p = Marshal.AllocHGlobal(Marshal.SizeOf(ownedClosureSample));
+            Marshal.StructureToPtr(ownedClosureSample, p, false);
+            closureSample = (ZOwnedClosureSample*)p;
+            ownedSubscriber = null;
         }
     }
 
-    public class Subscriber
+    public void Dispose() => Dispose(true);
+
+    private void Dispose(bool disposing)
     {
-        [StructLayout(LayoutKind.Sequential)]
-        public struct NativeType // z_owned_subscriber_t
+        if (_disposed) return;
+
+        unsafe
         {
-            public IntPtr p;
+            ZenohC.z_closure_sample_drop(closureSample);
+            Marshal.FreeHGlobal((nint)closureSample);
+            Marshal.FreeHGlobal((nint)ownedSubscriber);
         }
 
-        [StructLayout(LayoutKind.Sequential)]
-        public struct Options // z_subscriber_options_t
+        _userCallbackGcHandle.Free();
+        _disposed = true;
+    }
+
+    private static unsafe void Call(ZSample* zSample, void* context)
+    {
+        GCHandle gch = GCHandle.FromIntPtr((nint)context);
+        SubscriberCallback callback = (SubscriberCallback)gch.Target;
+        Sample sample = new Sample(zSample);
+        if (callback != null)
         {
-            public Reliability reliability;
+            callback(sample);
         }
-
-        internal KeyExpr key;
-        internal NativeType nativeSubscriber;
-        internal SubscriberCallback userCallback = null;
-        internal ZOwnedClosureSampleCallback sampleCallback = null;
-        internal ZOwnedClosureSampleDrop sampleDrop = null;
-        internal ZClosureSample closure;
-
-        public Subscriber(string key, SubscriberCallback userCallback)
-        {
-            this.key = KeyExpr.FromString(key);
-            this.nativeSubscriber.p = IntPtr.Zero;
-            this.userCallback = userCallback;
-            ZOwnedClosureSampleCallback call = new ZOwnedClosureSampleCallback(SubscriberNativeCallbackImpl);
-            sampleCallback = call;
-            this.closure = new ZClosureSample(call, null, IntPtr.Zero);
-        }
-
-        internal void SubscriberNativeCallbackImpl(ref Sample.NativeType samplePtr, IntPtr arg)
-        {
-            Sample s = new Sample(samplePtr);
-            this.userCallback(s);
-        }
-
-        public static Options GetOptionsDefault()
-        {
-            return ZSubScriberOptionsDefault();
-        }
-
-        [DllImport(ZenohC.DllName, EntryPoint = "z_subscriber_options_default")]
-        internal static extern Options ZSubScriberOptionsDefault();
     }
 }

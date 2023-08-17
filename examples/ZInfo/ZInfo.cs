@@ -1,37 +1,38 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using Zenoh;
 
-//Zenoh.Zenoh.InitLogger();
 Config config = new Config();
-//config.SetId("01");
-//string[] c = { "tcp/172.30.100.3:7447", "tcp/172.30.100.1:7447" };
-//config.SetConnect(c);
 config.SetMode(Config.Mode.Client);
-config.SetTimestamp(true);
-string configStr = config.ToStr();
-Console.WriteLine($"config string:\n{configStr}\n----------------------\n");
+string[] connect = { "tcp/127.0.0.1:7447" };
+config.SetConnect(connect);
+//string[] listen = {"tcp/127.0.0.1:7888"};
+//config.SetListen(listen);
 
-Session session = new Session();
 Console.WriteLine("Opening session...");
-if (session.Open(config))
+var session = Session.Open(config);
+if (session is null)
 {
-    // wait
-    Thread.Sleep(1000);
-}
-else
-{
-    Console.WriteLine("Opening session unsuccessful");
+    Console.WriteLine("Opening session fault!");
     return;
 }
 
-string pid = session.LocalZid();
-string[] routerPid = session.RoutersZid();
-string[] peerPid = session.PeersZid();
+Thread.Sleep(200);
+Console.WriteLine("Opening session successful!");
 
-Console.WriteLine($"Local PID: {pid}");
-Console.WriteLine($"PeersPID: {String.Join(',', peerPid)}");
-Console.WriteLine($"Routers PID: {String.Join(',', routerPid)}");
+string localId = session.LocalId().ToStr();
+Session.Id[] routersId = session.RoutersId();
+List<string> routersIdStr = new List<string>();
+foreach (var id in routersId)
+{
+    routersIdStr.Add(id.ToStr());
+}
+// string[] peerPid = session.PeersZid();
+
+Console.WriteLine($"Local ID: {localId}");
+// Console.WriteLine($"PeersPID: {String.Join(',', peerPid)}");
+Console.WriteLine($"Routers ID: {String.Join(',', routersIdStr)}");
 
 session.Close();
