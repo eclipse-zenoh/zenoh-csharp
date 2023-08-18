@@ -17,7 +17,7 @@ public class Subscriber : IDisposable
     internal readonly unsafe ZOwnedClosureSample* closureSample;
     internal unsafe ZOwnedSubscriber* ownedSubscriber;
     internal readonly string keyexpr;
-    internal readonly Reliability reliability;
+    internal readonly ZSubscriberOptions options;
     private GCHandle _userCallbackGcHandle;
     private bool _disposed;
 
@@ -32,7 +32,7 @@ public class Subscriber : IDisposable
         {
             keyexpr = key;
             _disposed = false;
-            this.reliability = reliability;
+            options.reliability = reliability;
             _userCallbackGcHandle = GCHandle.Alloc(userCallback);
             ZOwnedClosureSample ownedClosureSample = new ZOwnedClosureSample
             {

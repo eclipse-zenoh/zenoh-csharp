@@ -40,8 +40,8 @@ void Callback2(Sample sample)
 SubscriberCallback userCallback1 = Callback1;
 SubscriberCallback userCallback2 = Callback2;
 
-string key1 = "demo/example/zenoh-cs-put1";
-string key2 = "demo/example/zenoh-cs-put2";
+string key1 = "demo/example/zenoh-cs-put$*";
+string key2 = "demo/example/zenoh-cs-pub$*";
 
 Subscriber subscriber1 = new Subscriber(key1, userCallback1);
 Subscriber subscriber2 = new Subscriber(key2, userCallback2);
@@ -52,7 +52,6 @@ if (handle1 is null)
     Console.WriteLine($"Register Subscriber1 fault On '{key1}'");
     return;
 }
-
 Console.WriteLine($"Registered Subscriber1 On '{key1}'");
 
 var handle2 = session.RegisterSubscriber(subscriber2);
@@ -61,7 +60,6 @@ if (handle2 is null)
     Console.WriteLine($"Register Subscriber2 fault On '{key2}'");
     return;
 }
-
 Console.WriteLine($"Registered Subscriber2 On '{key2}'");
 
 Console.WriteLine("Enter 'q' to quit...");
@@ -74,7 +72,7 @@ while (true)
     }
 }
 
-session.UnregisterSubscriber((SubscriberHandle)handle1);
-session.UnregisterSubscriber((SubscriberHandle)handle2);
+session.UnregisterSubscriber(handle1.Value);
+session.UnregisterSubscriber(handle2.Value);
 
 session.Close();

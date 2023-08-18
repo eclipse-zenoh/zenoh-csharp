@@ -13,12 +13,15 @@ public class Session : IDisposable
 {
     internal SortedDictionary<int, Subscriber> subscribers;
     private int _indexSubscriber = 1;
+    internal SortedDictionary<int, Publisher> publishers;
+    private int _indexPublisher = 1;
     private bool _disposed;
     private readonly unsafe ZOwnedSession* _session;
 
     private unsafe Session(ZOwnedSession* session)
     {
         subscribers = new SortedDictionary<int, Subscriber>();
+        publishers = new SortedDictionary<int, Publisher>();
         _disposed = false;
         _session = session;
     }
@@ -230,33 +233,74 @@ public class Session : IDisposable
         }
     }
 
+    public bool PubStr(PublisherHandle handle, string value)
+    {
+        byte[] data = Encoding.UTF8.GetBytes(value);
+        return _publisher_put(handle, data, EncodingPrefix.TextPlain);
+    }
+
+    public bool PubJson(PublisherHandle handle, string value)
+    {
+        byte[] data = Encoding.UTF8.GetBytes(value);
+        return _publisher_put(handle, data, EncodingPrefix.AppJson);
+    }
+
+    public bool PubInt(PublisherHandle handle, long value)
+    {
+        string s = value.ToString("G");
+        byte[] data = Encoding.UTF8.GetBytes(s);
+        return _publisher_put(handle, data, EncodingPrefix.AppInteger);
+    }
+
+    public bool PubFloat(PublisherHandle handle, double value)
+    {
+        string s = value.ToString("G");
+        byte[] data = Encoding.UTF8.GetBytes(s);
+        return _publisher_put(handle, data, EncodingPrefix.AppFloat);
+    }
+
+
+    private bool _publisher_put(PublisherHandle handle, byte[] value, EncodingPrefix encodingPrefix)
+    {
+        if (_disposed) return false;
+        unsafe
+        {
+            if (!publishers.TryGetValue(handle.handle, out Publisher? publisher))
+                return false;
+
+            ZPublisher pub = ZenohC.z_publisher_loan(publisher.ownedPublisher);
+            ZPublisherPutOptions options = new ZPublisherPutOptions
+            {
+                encoding = ZenohC.z_encoding(encodingPrefix, null),
+            };
+            nint pv = Marshal.AllocHGlobal(value.Length);
+            nuint len = (nuint)value.Length;
+            Marshal.Copy(value, 0, pv, value.Length);
+            int r = ZenohC.z_publisher_put(pub, (byte*)pv, len, &options);
+            Marshal.FreeHGlobal(pv);
+            return r == 0;
+        }
+    }
+
     public SubscriberHandle? RegisterSubscriber(Subscriber subscriber)
     {
         unsafe
         {
             if (subscriber.ownedSubscriber != null)
-            {
                 return null;
-            }
 
             ZSession session = ZenohC.z_session_loan(_session);
             nint pKey = Marshal.StringToHGlobalAnsi(subscriber.keyexpr);
             ZKeyexpr keyexpr = ZenohC.z_keyexpr((byte*)pKey);
-            ZSubscriberOptions options = new ZSubscriberOptions
-            {
-                reliability = subscriber.reliability,
-            };
             nint pOptions = Marshal.AllocHGlobal(Marshal.SizeOf<ZSubscriberOptions>());
-            Marshal.StructureToPtr(options, pOptions, false);
+            Marshal.StructureToPtr(subscriber.options, pOptions, false);
             ZOwnedSubscriber sub =
                 ZenohC.z_declare_subscriber(session, keyexpr, subscriber.closureSample, (ZSubscriberOptions*)pOptions);
             Marshal.FreeHGlobal(pOptions);
             Marshal.FreeHGlobal(pKey);
 
             if (ZenohC.z_subscriber_check(&sub) != 1)
-            {
                 return null;
-            }
 
             nint pOwnedSubscriber = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedSubscriber>());
             Marshal.StructureToPtr(sub, pOwnedSubscriber, false);
@@ -289,6 +333,61 @@ public class Session : IDisposable
             }
 
             subscribers.Remove(handle);
+        }
+    }
+
+    public PublisherHandle? RegisterPublisher(Publisher publisher)
+    {
+        unsafe
+        {
+            if (publisher.ownedPublisher != null)
+                return null;
+
+            ZSession session = ZenohC.z_session_loan(_session);
+            nint pKey = Marshal.StringToHGlobalAnsi(publisher.keyexpr);
+            ZKeyexpr keyexpr = ZenohC.z_keyexpr((byte*)pKey);
+            nint pOptions = Marshal.AllocHGlobal(Marshal.SizeOf<ZPublisherOptions>());
+            Marshal.StructureToPtr(publisher.options, pOptions, false);
+
+            ZOwnedPublisher pub = ZenohC.z_declare_publisher(session, keyexpr, (ZPublisherOptions*)pOptions);
+
+            Marshal.FreeHGlobal(pOptions);
+            Marshal.FreeHGlobal(pKey);
+
+            if (ZenohC.z_publisher_check(&pub) != 1)
+                return null;
+
+            nint pOwnedPublisher = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedPublisher>());
+            Marshal.StructureToPtr(pub, pOwnedPublisher, false);
+            publisher.ownedPublisher = (ZOwnedPublisher*)pOwnedPublisher;
+
+            _indexPublisher += 1;
+            publishers.Add(_indexPublisher, publisher);
+
+            return new PublisherHandle
+            {
+                handle = _indexPublisher
+            };
+        }
+    }
+
+    public void UnregisterPublisher(PublisherHandle handle)
+    {
+        UnregisterPublisher(handle.handle);
+    }
+
+    private void UnregisterPublisher(int handle)
+    {
+        if (publishers.TryGetValue(handle, out Publisher? publisher))
+        {
+            unsafe
+            {
+                ZenohC.z_undeclare_publisher(publisher.ownedPublisher);
+                Marshal.FreeHGlobal((nint)publisher.ownedPublisher);
+                publisher.ownedPublisher = null;
+            }
+
+            publishers.Remove(handle);
         }
     }
 }

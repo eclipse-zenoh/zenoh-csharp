@@ -13,6 +13,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZSub", "ZSub\ZSub.csproj", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZInfo", "ZInfo\ZInfo.csproj", "{B973A563-44AD-4B68-855C-46B5D58DCE32}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZPub", "ZPub\ZPub.csproj", "{D642DF1F-7096-4D47-A5EA-FCF624536993}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -64,5 +66,13 @@ Global
 		{435FE932-CE46-49D0-B921-AC1B11585F13}.Debug|ARM64.Build.0 = Debug|ARM64
 		{435FE932-CE46-49D0-B921-AC1B11585F13}.Release|ARM64.ActiveCfg = Release|ARM64
 		{435FE932-CE46-49D0-B921-AC1B11585F13}.Release|ARM64.Build.0 = Release|ARM64
+		{D642DF1F-7096-4D47-A5EA-FCF624536993}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{D642DF1F-7096-4D47-A5EA-FCF624536993}.Debug|x64.Build.0 = Debug|Any CPU
+		{D642DF1F-7096-4D47-A5EA-FCF624536993}.Debug|ARM64.ActiveCfg = Debug|Any CPU
+		{D642DF1F-7096-4D47-A5EA-FCF624536993}.Debug|ARM64.Build.0 = Debug|Any CPU
+		{D642DF1F-7096-4D47-A5EA-FCF624536993}.Release|x64.ActiveCfg = Release|Any CPU
+		{D642DF1F-7096-4D47-A5EA-FCF624536993}.Release|x64.Build.0 = Release|Any CPU
+		{D642DF1F-7096-4D47-A5EA-FCF624536993}.Release|ARM64.ActiveCfg = Release|Any CPU
+		{D642DF1F-7096-4D47-A5EA-FCF624536993}.Release|ARM64.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
