@@ -4,29 +4,29 @@ using System;
 using System.Threading;
 using Zenoh;
 
-// Config config = new Config();
-// if (!config.SetMode(Config.Mode.Client))
+ Config config = new Config();
+ if (!config.SetMode(Config.Mode.Client))
+ {
+     Console.WriteLine("Config set mode fail");
+     return;
+ }
+ string[] connect = { "tcp/127.0.0.1:7447" };
+ if (!config.SetConnect(connect))
+ {
+     Console.WriteLine("Config set connect fail");
+     return;
+ }
+ 
+// string[] listen = {"tcp/127.0.0.1:7888"};
+// config.SetListen(listen);
+
+// Config? c = Config.LoadFromFile("../../../../zenoh.json5");
+// if (c == null)
 // {
-//     Console.WriteLine("Config set mode fail");
+//     Console.WriteLine("Load config error!");
 //     return;
 // }
-// string[] connect = { "tcp/127.0.0.1:7447" };
-// if (!config.SetConnect(connect))
-// {
-//     Console.WriteLine("Config set connect fail");
-//     return;
-// }
-//string[] listen = {"tcp/127.0.0.1:7888"};
-//config.SetListen(listen);
-
-Config? c = Config.LoadFromFile("../../../../zenoh.json5");
-if (c == null)
-{
-    Console.WriteLine("Load config error!");
-    return;
-}
-
-Config config = c;
+// Config config = c;
 
 Console.WriteLine("Opening session...");
 var session = Session.Open(config);

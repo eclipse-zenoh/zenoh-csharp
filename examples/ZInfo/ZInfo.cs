@@ -1,11 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using Zenoh;
 
 Config config = new Config();
-config.SetMode(Config.Mode.Client);
+config.SetMode(Config.Mode.Peer);
 string[] connect = { "tcp/127.0.0.1:7447" };
 config.SetConnect(connect);
 //string[] listen = {"tcp/127.0.0.1:7888"};
@@ -23,16 +22,23 @@ Thread.Sleep(200);
 Console.WriteLine("Opening session successful!");
 
 string localId = session.LocalId().ToStr();
-Session.Id[] routersId = session.RoutersId();
+Id[] routersId = session.RoutersId();
 List<string> routersIdStr = new List<string>();
 foreach (var id in routersId)
 {
     routersIdStr.Add(id.ToStr());
 }
-// string[] peerPid = session.PeersZid();
+
+
+Id[] peerId = session.PeersId();
+List<string> peerIdStr = new List<string>();
+foreach (var id in peerId)
+{
+    peerIdStr.Add(id.ToStr());
+}
 
 Console.WriteLine($"Local ID: {localId}");
-// Console.WriteLine($"PeersPID: {String.Join(',', peerPid)}");
+Console.WriteLine($"PeersPID: {String.Join(',', peerIdStr)}");
 Console.WriteLine($"Routers ID: {String.Join(',', routersIdStr)}");
 
 session.Close();

@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Threading;
+
 
 namespace Zenoh;
 
@@ -70,61 +70,6 @@ public class Session : IDisposable
         Close();
     }
 
-
-    // private static List<string> GetIdStrings(IntPtr buf)
-    // {
-    //     List<string> list = new List<string>();
-    //     int len = Marshal.ReadByte(buf);
-    //     for (int i = 0; i < len; i++)
-    //     {
-    //         // byte[] b = new byte[ZenohC.IdLength];
-    //         // Marshal.Copy(buf + 1 + ZenohC.IdLength * i, b, 0, ZenohC.IdLength);
-    //         // list.Add(ZenohC.IdBytesToStr(b));
-    //     }
-    //
-    //     return list;
-    // }
-
-    // private static void InfoZidCallback(ref Zid zid, IntPtr buf)
-    // {
-    //     int i = Marshal.ReadByte(buf);
-    //     if (i >= ZenohC.RoutersNum)
-    //     {
-    //         return;
-    //     }
-    //
-    //     Marshal.Copy(zid.id, 0, buf + 1 + ZenohC.IdLength * i, ZenohC.IdLength);
-    //     Marshal.WriteByte(buf, (byte)(i + 1));
-    // }
-
-    public struct Id
-    {
-        internal byte[] data;
-
-        internal Id(ZId zid)
-        {
-            data = new byte[16];
-            for (int i = 0; i < 16; i++)
-            {
-                unsafe
-                {
-                    data[i] = zid.id[i];
-                }
-            }
-        }
-
-        public string ToStr()
-        {
-            StringBuilder sb = new StringBuilder();
-            foreach (byte b in data)
-            {
-                sb.Append(b.ToString("x"));
-            }
-
-            return sb.ToString();
-        }
-    }
-
     public Id LocalId()
     {
         unsafe
@@ -135,86 +80,55 @@ public class Session : IDisposable
         }
     }
 
-    [StructLayout(LayoutKind.Sequential, Pack = 8)]
-    private unsafe struct ZIdBuffer
-    {
-        internal nuint count;
-        internal fixed byte data[256 * 16];
-
-        public ZIdBuffer()
-        {
-            count = 0;
-        }
-
-        internal void Add(ZId* zId)
-        {
-            if (count >= 256) return;
-            for (nuint i = 0; i < 16; i++)
-            {
-                data[count * 16 + i] = zId->id[i];
-            }
-
-            count += 1;
-        }
-
-        internal Id[] ToIds()
-        {
-            Id[] ids = new Id[count];
-            for (nuint i = 0; i < count; i++)
-            {
-                byte[] o = new byte[16];
-                for (nuint j = 0; j < 16; j++)
-                {
-                    o[j] = data[i * 16 + j];
-                }
-
-                Id id = new Id
-                {
-                    data = o,
-                };
-                ids[i] = id;
-            }
-
-            return ids;
-        }
-    }
-
-    internal static unsafe void z_id_call(ZId* zId, void* context)
-    {
-        ZIdBuffer* pIdBuffer = (ZIdBuffer*)context;
-        pIdBuffer->Add(zId);
-    }
-
     public Id[] RoutersId()
     {
         unsafe
         {
             ZSession session = ZenohC.z_session_loan(_session);
             nint pIdBuffer = Marshal.AllocHGlobal(Marshal.SizeOf<ZIdBuffer>());
+            Marshal.WriteInt64(pIdBuffer, 0);
             ZOwnedClosureZId ownedClosureZId = new ZOwnedClosureZId
             {
                 context = (void*)pIdBuffer,
-                call = z_id_call,
+                call = ZIdBuffer.z_id_call,
                 drop = null,
             };
             nint pOwnedClosureZId = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedClosureZId>());
             Marshal.StructureToPtr(ownedClosureZId, pOwnedClosureZId, false);
-
             ZenohC.z_info_routers_zid(session, (ZOwnedClosureZId*)pOwnedClosureZId);
-
-            ZIdBuffer zIdBuffer;
-            zIdBuffer = (ZIdBuffer)Marshal.PtrToStructure(pIdBuffer, typeof(ZIdBuffer));
-            Id[] ids = zIdBuffer.ToIds();
+            ZIdBuffer? zIdBuffer = (ZIdBuffer?)Marshal.PtrToStructure(pIdBuffer, typeof(ZIdBuffer));
 
             Marshal.FreeHGlobal(pOwnedClosureZId);
             Marshal.FreeHGlobal(pIdBuffer);
-            return ids;
+
+            return zIdBuffer is null ? Array.Empty<Id>() : zIdBuffer.Value.ToIds();
         }
     }
 
-    // public Id[] PeersId()
-    // {
-    // }
+    public Id[] PeersId()
+    {
+        unsafe
+        {
+            ZSession session = ZenohC.z_session_loan(_session);
+            nint pIdBuffer = Marshal.AllocHGlobal(Marshal.SizeOf<ZIdBuffer>());
+            Marshal.WriteInt64(pIdBuffer, 0);
+            ZOwnedClosureZId ownedClosureZId = new ZOwnedClosureZId
+            {
+                context = (void*)pIdBuffer,
+                call = ZIdBuffer.z_id_call,
+                drop = null,
+            };
+            nint pOwnedClosureZId = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedClosureZId>());
+            Marshal.StructureToPtr(ownedClosureZId, pOwnedClosureZId, false);
+            ZenohC.z_info_peers_zid(session, (ZOwnedClosureZId*)pOwnedClosureZId);
+            ZIdBuffer? zIdBuffer = (ZIdBuffer?)Marshal.PtrToStructure(pIdBuffer, typeof(ZIdBuffer));
+
+            Marshal.FreeHGlobal(pOwnedClosureZId);
+            Marshal.FreeHGlobal(pIdBuffer);
+
+            return zIdBuffer is null ? Array.Empty<Id>() : zIdBuffer.Value.ToIds();
+        }
+    }
 
     public bool PutStr(string key, string value)
     {
