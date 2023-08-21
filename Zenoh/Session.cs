@@ -220,15 +220,18 @@ public class Session : IDisposable
         if (_disposed) return false;
         unsafe
         {
-            nint pv = Marshal.AllocHGlobal(value.Length);
-            nuint len = (nuint)value.Length;
-            Marshal.Copy(value, 0, pv, value.Length);
-            nint pKey = Marshal.StringToHGlobalAnsi(key);
-            ZSession session = ZenohC.z_session_loan(_session);
-            ZKeyexpr keyexpr = ZenohC.z_keyexpr((byte*)pKey);
-            int r = ZenohC.z_put(session, keyexpr, (byte*)pv, len, &options);
-            Marshal.FreeHGlobal(pv);
-            Marshal.FreeHGlobal(pKey);
+            int r;
+
+            fixed (byte* pv = value)
+            {
+                nuint len = (nuint)value.Length;
+                nint pKey = Marshal.StringToHGlobalAnsi(key);
+                ZSession session = ZenohC.z_session_loan(_session);
+                ZKeyexpr keyexpr = ZenohC.z_keyexpr((byte*)pKey);
+                r = ZenohC.z_put(session, keyexpr, pv, len, &options);
+                Marshal.FreeHGlobal(pKey);
+            }
+
             return r == 0;
         }
     }
@@ -273,11 +276,13 @@ public class Session : IDisposable
             {
                 encoding = ZenohC.z_encoding(encodingPrefix, null),
             };
-            nint pv = Marshal.AllocHGlobal(value.Length);
-            nuint len = (nuint)value.Length;
-            Marshal.Copy(value, 0, pv, value.Length);
-            int r = ZenohC.z_publisher_put(pub, (byte*)pv, len, &options);
-            Marshal.FreeHGlobal(pv);
+            int r;
+            fixed (byte* pv = value)
+            {
+                nuint len = (nuint)value.Length;
+                r = ZenohC.z_publisher_put(pub, pv, len, &options);
+            }
+
             return r == 0;
         }
     }

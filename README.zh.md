@@ -23,7 +23,7 @@ C# API是用于纯客户端的, 可以很容易地针对运行在Docker容器中
 
 ### 支持的CPU架构
 - x64
-- arm64
+- arm64 (未测试)
 
 ### Zenoh-CS 版本与 Zenoh-C 版本对应关系
 |  Zenoh-C  | Zenoh-CS |

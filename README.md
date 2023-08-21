@@ -6,10 +6,13 @@
 
 # Zenoh C# API
 
+[中文/chinese readme](https://github.com/sanri/zenoh-csharp/blob/master/README.zh.md)
+
 [Zenoh](http://zenoh.io) is an extremely efficient and fault-tolerant [Named Data Networking](http://named-data.net) (NDN) protocol that is able to scale down to extremely constrainded devices and networks.
 
 The C# API is for pure clients, in other terms does not support peer-to-peer communication, 
 can be easily tested against a zenoh router running in a Docker container (see https://github.com/eclipse-zenoh/zenoh#how-to-test-it).
+
 
 -------------------------------
 ## How to install it
@@ -24,7 +27,7 @@ Requirements:
 
 ### Supported CPU arch
 - x64
-- arm64
+- arm64 (untested)
 
 ### Mapping between Zenoh-CS and Zenoh-C versions
 |  Zenoh-C  | Zenoh-CS |
