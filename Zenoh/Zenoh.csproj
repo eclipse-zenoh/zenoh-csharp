@@ -2,7 +2,7 @@
     <PropertyGroup>
         <AssemblyName>Zenoh</AssemblyName>
         <PackageId>Zenoh-CS</PackageId>
-        <Version>0.1.0</Version>
+        <Version>0.1.1</Version>
         <Authors>sanri</Authors>
         <PackageLicenseExpression>EPL-2.0 OR Apache-2.0</PackageLicenseExpression>
         <Description>Zenoh: Zero Overhead Pub/sub, Store/Query and Compute.</Description>
@@ -14,7 +14,7 @@
         <OutputType>Library</OutputType>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <LangVersion>10</LangVersion>
-        <PackageVersion>0.1.0</PackageVersion>
+        <PackageVersion>0.1.1</PackageVersion>
         <PackageTags>zenoh</PackageTags>
         <TargetFrameworks>net7.0;net6.0</TargetFrameworks>
         <Configurations>Release;Debug</Configurations>
@@ -24,10 +24,10 @@
         <DefineConstants>TRACE;PLATFORM_ARM</DefineConstants>
     </PropertyGroup>
     <PropertyGroup Condition=" '$(Platform)' == 'ARM64' ">
-      <DefineConstants>TRACE;PLATFORM_ARM64</DefineConstants>
+        <DefineConstants>TRACE;PLATFORM_ARM64</DefineConstants>
     </PropertyGroup>
     <PropertyGroup Condition=" '$(Platform)' == 'x64' ">
-      <DefineConstants>TRACE;PLATFORM_x64</DefineConstants>
+        <DefineConstants>TRACE;PLATFORM_x64</DefineConstants>
     </PropertyGroup>
     <ItemGroup>
         <None Include="../README.md" Pack="true" PackagePath="/"/>

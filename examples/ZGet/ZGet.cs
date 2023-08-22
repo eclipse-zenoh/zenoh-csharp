@@ -1,48 +1,60 @@
-﻿using System;
+﻿#nullable enable
+
+using System;
+using System.Text;
 using System.Threading;
 using Zenoh;
 
-/*
-//Zenoh.Zenoh.InitLogger();
 Config config = new Config();
-//string[] connect = {"tcp/172.30.100.3:7447"};
-//config.SetConnect(connect);
-Session session = new Session();
+config.SetMode(Config.Mode.Client);
+string[] connect = { "tcp/127.0.0.1:7447" };
+config.SetConnect(connect);
+//string[] listen = {"tcp/127.0.0.1:7888"};
+//config.SetListen(listen);
 
 Console.WriteLine("Opening session...");
-if (session.Open(config))
+var session = Session.Open(config);
+if (session is null)
 {
-    // wait
-    Thread.Sleep(1000);
-}
-else
-{
-    Console.WriteLine("Opening session unsuccessful");
+    Console.WriteLine("Opening session fault!");
     return;
 }
 
-KeyExpr key1 = KeyExpr.FromString("demo/example/zenoh-cs-put1");
-KeyExpr key2 = KeyExpr.FromString("demo/example/zenoh-cs-put2");
+Thread.Sleep(200);
+Console.WriteLine("Opening session successful!");
 
-Console.WriteLine($"Sending Query '{key1.GetStr()}'");
-ReplayDataArray data1 = session.Get(key1);
-foreach (ReplayData ele in data1.List)
+string keyexpr = "demo/**";
+byte[] data = Encoding.UTF8.GetBytes("hello");
+QueryOptions queryOptions = new QueryOptions(keyexpr, EncodingPrefix.TextPlain, data);
+
+Console.WriteLine($"Sending Query '{keyexpr}'");
+Querier? querier = session.Query(queryOptions);
+if (querier is null)
 {
-    string s = $">> Received ('{ele.Sample.Key}': '{ele.Sample.ValueToString()}'";
-    Console.WriteLine(s);
+    Console.WriteLine("Session query fault!");
+    goto EXIT;
 }
 
-
-ReplayDataArray data2 = session.Get(key2);
-Console.WriteLine($"Sending Query '{key2.GetStr()}'");
-foreach (ReplayData ele in data2.List)
+QuerierCallback callback = sample =>
 {
-    string s = $">> Received ('{ele.Sample.Key}': '{ele.Sample.ValueToString()}'";
-    Console.WriteLine(s);
+    string key = sample.GetKeyexpr();
+    EncodingPrefix encodingPrefix = sample.GetEncodingPrefix();
+    string? s = sample.GetString();
+    if (s is null)
+    {
+        byte[] d = sample.GetPayload();
+        Console.WriteLine($">> Received ('{key}' '{encodingPrefix}': '{d}')");
+    }
+    else
+    {
+        Console.WriteLine($">> Received ('{key}' '{encodingPrefix}': '{s}')");
+    }
+};
+
+if (!querier.GetSamples(callback))
+{
+    Console.WriteLine("querier get sample error!");
 }
 
+EXIT:
 session.Close();
-
-*/
-
-Console.WriteLine("hello");

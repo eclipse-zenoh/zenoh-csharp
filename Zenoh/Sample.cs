@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 
 namespace Zenoh;
 
+// 这是一个引用类型, 不释放引用的内存.
 public class Sample
 {
     private readonly unsafe ZSample* _native;

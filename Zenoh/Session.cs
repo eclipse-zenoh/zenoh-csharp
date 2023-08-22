@@ -395,4 +395,35 @@ public class Session : IDisposable
             publishers.Remove(handle);
         }
     }
+
+    public Querier? Query(QueryOptions options)
+    {
+        if (_disposed)
+            return null;
+
+        unsafe
+        {
+            ZSession session = ZenohC.z_session_loan(_session);
+            nint pKey = Marshal.StringToHGlobalAnsi(options.keyexpr);
+            ZKeyexpr keyexpr = ZenohC.z_keyexpr((byte*)pKey);
+            Querier querier = new Querier();
+            ZGetOptions getOptions = new ZGetOptions();
+            getOptions.target = options.target;
+            getOptions.consolidation.mode = options.mode;
+            getOptions.value.encoding = ZenohC.z_encoding(options.encodingPrefix, null);
+            getOptions.value.payload.len = (nuint)options.payload.Length;
+            sbyte r;
+            fixed (byte* data = options.payload)
+            {
+                getOptions.value.payload.start = data;
+                nint pOptions = Marshal.AllocHGlobal(Marshal.SizeOf<ZGetOptions>());
+                Marshal.StructureToPtr(getOptions, pOptions, false);
+                r = ZenohC.z_get(session, keyexpr, null, &querier._channel->send, (ZGetOptions*)pOptions);
+                Marshal.FreeHGlobal(pOptions);
+                Marshal.FreeHGlobal(pKey);
+            }
+
+            return r >= 0 ? querier : null;
+        }
+    }
 }

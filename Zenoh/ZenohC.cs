@@ -684,6 +684,40 @@ internal unsafe struct ZOwnedClosureReply
     internal delegate* unmanaged[Cdecl]<void*, void> drop;
 }
 
+// z_owned_reply_channel_closure_t 
+// --------------------------------
+// typedef struct z_owned_reply_channel_closure_t {
+//   void *context;
+//   bool (*call)(struct z_owned_reply_t*, void*);
+//   void (*drop)(void*);
+// } z_owned_reply_channel_closure_t;
+// --------------------------------
+internal unsafe delegate void ZOwnedReplayChannelClosureCall(ZOwnedReply* zOwnedReply, void* context);
+
+internal unsafe delegate void ZOwnedReplyChannelClosureDrop(void* context);
+
+[StructLayout(LayoutKind.Sequential)]
+internal unsafe struct ZOwnedReplyChannelClosure
+{
+    internal void* context;
+    internal ZOwnedReplayChannelClosureCall call;
+    internal ZOwnedReplyChannelClosureDrop drop;
+}
+
+// z_owned_reply_channel_t 
+// --------------------------------
+// typedef struct z_owned_reply_channel_t {
+//     struct z_owned_closure_reply_t send;
+//     struct z_owned_reply_channel_closure_t recv;
+// } z_owned_reply_channel_t;
+// --------------------------------
+[StructLayout(LayoutKind.Sequential)]
+internal struct ZOwnedReplyChannel
+{
+    internal ZOwnedClosureReply send;
+    internal ZOwnedReplyChannelClosure recv;
+}
+
 [StructLayout(LayoutKind.Sequential)]
 public struct ConsolidationStrategy // z_consolidation_strategy_t
 {
@@ -1087,11 +1121,15 @@ internal static unsafe class ZenohC
     [DllImport(DllName, EntryPoint = "z_closure_sample_drop", CallingConvention = CallingConvention.Cdecl)]
     internal static extern void z_closure_sample_drop(ZOwnedClosureSample* closure);
 
-    // public static string IdBytesToStr(byte[] buf)
-    // {
-    //     var str = new StringBuilder();
-    //     for (var i = buf.Length - 1; i >= 0; i--) str.Append($"{buf[i]:X2}");
-
-    //     return str.ToString();
-    // }
+    [DllImport(DllName, EntryPoint = "z_closure_reply_call", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern void z_closure_reply_call(ZOwnedClosureReply* closure, ZOwnedReply* sample);
+    
+    [DllImport(DllName, EntryPoint = "zc_reply_fifo_new", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern ZOwnedReplyChannel zc_reply_fifo_new(nuint bound);
+    
+    [DllImport(DllName, EntryPoint = "z_reply_channel_drop", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern void z_reply_channel_drop(ZOwnedReplyChannel* channel);
+    
+    [DllImport(DllName, EntryPoint = "z_reply_channel_closure_call", CallingConvention = CallingConvention.Cdecl)]
+    internal static extern sbyte z_reply_channel_closure_call(ZOwnedReplyChannelClosure* closure, ZOwnedReply* reply);
 }
