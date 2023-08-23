@@ -2,7 +2,7 @@
 
 ## Introduce 
 
-Each example accepts the `-h` or `--help` option that provides a description of its arguments and their default values.
+Each example accepts the `--help` option that provides a description of its arguments and their default values.
 
 If you run the tests against the zenoh router running in a Docker container, 
 you need to add the `-e tcp/localhost:7447` option to your examples. 
