@@ -56,7 +56,6 @@ public class Subscriber : IDisposable
 
         unsafe
         {
-            ZenohC.z_closure_sample_drop(closureSample);
             Marshal.FreeHGlobal((nint)closureSample);
             Marshal.FreeHGlobal((nint)ownedSubscriber);
         }

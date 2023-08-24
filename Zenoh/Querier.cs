@@ -1,5 +1,4 @@
 #pragma warning disable CS8500
-#nullable enable
 
 using System;
 using System.Runtime.InteropServices;

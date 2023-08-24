@@ -652,6 +652,10 @@ internal unsafe struct ZOwnedClosureZId
     internal ZOwnedClosureZIdDrop drop;
 }
 
+internal unsafe delegate void ZOwnedClosureQueryCall(ZQuery* zQuery, void* context);
+
+internal unsafe delegate void ZOwnedClosureQueryDrop(void* context);
+
 // z_owned_closure_query_t 
 // --------------------------------
 //  typedef struct z_owned_closure_query_t {
@@ -664,8 +668,8 @@ internal unsafe struct ZOwnedClosureZId
 internal unsafe struct ZOwnedClosureQuery
 {
     internal void* context;
-    internal delegate* unmanaged[Cdecl]<ZQuery*, void*, void> call;
-    internal delegate* unmanaged[Cdecl]<void*, void> drop;
+    internal ZOwnedClosureQueryCall call;
+    internal ZOwnedClosureQueryDrop drop;
 }
 
 // z_owned_closure_reply_t 
@@ -1123,13 +1127,13 @@ internal static unsafe class ZenohC
 
     [DllImport(DllName, EntryPoint = "z_closure_reply_call", CallingConvention = CallingConvention.Cdecl)]
     internal static extern void z_closure_reply_call(ZOwnedClosureReply* closure, ZOwnedReply* sample);
-    
+
     [DllImport(DllName, EntryPoint = "zc_reply_fifo_new", CallingConvention = CallingConvention.Cdecl)]
     internal static extern ZOwnedReplyChannel zc_reply_fifo_new(nuint bound);
-    
+
     [DllImport(DllName, EntryPoint = "z_reply_channel_drop", CallingConvention = CallingConvention.Cdecl)]
     internal static extern void z_reply_channel_drop(ZOwnedReplyChannel* channel);
-    
+
     [DllImport(DllName, EntryPoint = "z_reply_channel_closure_call", CallingConvention = CallingConvention.Cdecl)]
     internal static extern sbyte z_reply_channel_closure_call(ZOwnedReplyChannelClosure* closure, ZOwnedReply* reply);
 }

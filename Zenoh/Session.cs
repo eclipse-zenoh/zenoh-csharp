@@ -1,5 +1,4 @@
 #pragma warning disable CS8500
-#nullable enable
 
 using System;
 using System.Collections.Generic;
@@ -11,17 +10,20 @@ namespace Zenoh;
 
 public class Session : IDisposable
 {
-    internal SortedDictionary<int, Subscriber> subscribers;
+    internal SortedDictionary<int, Subscriber> subscribersDictionary;
     private int _indexSubscriber = 1;
-    internal SortedDictionary<int, Publisher> publishers;
+    internal SortedDictionary<int, Publisher> publishersDictionary;
     private int _indexPublisher = 1;
+    internal SortedDictionary<int, Queryable> queryableDictionary;
+    private int _indexQueryable = 1;
     private bool _disposed;
     private readonly unsafe ZOwnedSession* _session;
 
     private unsafe Session(ZOwnedSession* session)
     {
-        subscribers = new SortedDictionary<int, Subscriber>();
-        publishers = new SortedDictionary<int, Publisher>();
+        subscribersDictionary = new SortedDictionary<int, Subscriber>();
+        publishersDictionary = new SortedDictionary<int, Publisher>();
+        queryableDictionary = new SortedDictionary<int, Queryable>();
         _disposed = false;
         _session = session;
     }
@@ -50,14 +52,14 @@ public class Session : IDisposable
 
         unsafe
         {
-            foreach ((_, Subscriber subscriber) in subscribers)
+            foreach ((_, Subscriber subscriber) in subscribersDictionary)
             {
                 ZenohC.z_undeclare_subscriber(subscriber.ownedSubscriber);
                 Marshal.FreeHGlobal((nint)subscriber.ownedSubscriber);
                 subscriber.ownedSubscriber = null;
             }
 
-            subscribers.Clear();
+            subscribersDictionary.Clear();
 
             ZenohC.z_close(_session);
             Marshal.FreeHGlobal((nint)_session);
@@ -262,13 +264,12 @@ public class Session : IDisposable
         return _publisher_put(handle, data, EncodingPrefix.AppFloat);
     }
 
-
     private bool _publisher_put(PublisherHandle handle, byte[] value, EncodingPrefix encodingPrefix)
     {
         if (_disposed) return false;
         unsafe
         {
-            if (!publishers.TryGetValue(handle.handle, out Publisher? publisher))
+            if (!publishersDictionary.TryGetValue(handle.handle, out Publisher? publisher))
                 return false;
 
             ZPublisher pub = ZenohC.z_publisher_loan(publisher.ownedPublisher);
@@ -312,7 +313,7 @@ public class Session : IDisposable
             subscriber.ownedSubscriber = (ZOwnedSubscriber*)pOwnedSubscriber;
 
             _indexSubscriber += 1;
-            subscribers.Add(_indexSubscriber, subscriber);
+            subscribersDictionary.Add(_indexSubscriber, subscriber);
 
             return new SubscriberHandle
             {
@@ -328,7 +329,7 @@ public class Session : IDisposable
 
     private void UnregisterSubscriber(int handle)
     {
-        if (subscribers.TryGetValue(handle, out Subscriber? subscriber))
+        if (subscribersDictionary.TryGetValue(handle, out Subscriber? subscriber))
         {
             unsafe
             {
@@ -337,7 +338,7 @@ public class Session : IDisposable
                 subscriber.ownedSubscriber = null;
             }
 
-            subscribers.Remove(handle);
+            subscribersDictionary.Remove(handle);
         }
     }
 
@@ -367,7 +368,7 @@ public class Session : IDisposable
             publisher.ownedPublisher = (ZOwnedPublisher*)pOwnedPublisher;
 
             _indexPublisher += 1;
-            publishers.Add(_indexPublisher, publisher);
+            publishersDictionary.Add(_indexPublisher, publisher);
 
             return new PublisherHandle
             {
@@ -383,7 +384,7 @@ public class Session : IDisposable
 
     private void UnregisterPublisher(int handle)
     {
-        if (publishers.TryGetValue(handle, out Publisher? publisher))
+        if (publishersDictionary.TryGetValue(handle, out Publisher? publisher))
         {
             unsafe
             {
@@ -392,7 +393,7 @@ public class Session : IDisposable
                 publisher.ownedPublisher = null;
             }
 
-            publishers.Remove(handle);
+            publishersDictionary.Remove(handle);
         }
     }
 
@@ -424,6 +425,58 @@ public class Session : IDisposable
             }
 
             return r >= 0 ? querier : null;
+        }
+    }
+
+    public QueryableHandle? RegisterQueryable(Queryable queryable)
+    {
+        unsafe
+        {
+            if (queryable.zOwnedQueryable != null)
+                return null;
+
+            ZSession session = ZenohC.z_session_loan(_session);
+            nint pKey = Marshal.StringToHGlobalAnsi(queryable.keyexpr);
+            ZKeyexpr keyexpr = ZenohC.z_keyexpr((byte*)pKey);
+
+            ZOwnedQueryable zOwnedQueryable =
+                ZenohC.z_declare_queryable(session, keyexpr, queryable.closureQuery, queryable.options);
+            Marshal.FreeHGlobal(pKey);
+
+            if (ZenohC.z_queryable_check(&zOwnedQueryable) != 1)
+                return null;
+
+            nint pOwnedQueryable = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedQueryable>());
+            Marshal.StructureToPtr(zOwnedQueryable, pOwnedQueryable, false);
+            queryable.zOwnedQueryable = (ZOwnedQueryable*)pOwnedQueryable;
+
+            _indexQueryable += 1;
+            queryableDictionary.Add(_indexQueryable, queryable);
+
+            return new QueryableHandle
+            {
+                handle = _indexQueryable,
+            };
+        }
+    }
+
+    public void UnregisterQueryable(QueryableHandle handle)
+    {
+        UnregisterQueryable(handle.handle);
+    }
+
+    private void UnregisterQueryable(int handle)
+    {
+        if (queryableDictionary.TryGetValue(handle, out Queryable? queryable))
+        {
+            unsafe
+            {
+                ZenohC.z_undeclare_queryable(queryable.zOwnedQueryable);
+                Marshal.FreeHGlobal((nint)queryable.zOwnedQueryable);
+                queryable.zOwnedQueryable = null;
+            }
+
+            queryableDictionary.Remove(handle);
         }
     }
 }
