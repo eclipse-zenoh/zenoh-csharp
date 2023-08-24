@@ -27,7 +27,8 @@ dotnet build ZInfo/ZInfo.csproj --configuration Release --property:Platform=x64
 
 ### ZGet
 
-从Zenoh网络中获取值.
+为选择器发送查询消息.
+具有匹配路径或选择器的可查询项(例如 ZQueryable)将接收此查询，并使用接收方接收到的路径进行回复.
 
 构建命令
 ```bash
@@ -37,6 +38,21 @@ dotnet build ZGet/ZGet.csproj --configuration Release --property:Platform=x64
 启动命令, 在生成产物目录下运行
 ```bash
 ./ZGet 
+```
+
+### ZQueryable
+
+声明一个带有路径的可查询函数.
+这个可查询的函数将在每次调用get时触发, 调用与路径匹配的选择器, 并将向查询器返回一个值.
+
+构建命令
+```bash
+dotnet build ZQueryable/ZQueryable.csproj --configuration Release --property:Platform=x64  
+```
+
+启动命令, 在生成产物目录下运行
+```bash
+./ZQueryable
 ```
 
 

@@ -29,7 +29,8 @@ Run
 
 ### ZGet
 
-Gets value from zenoh session.
+Sends a query message for a selector.
+The queryables with a matching path or selector (for instance ZQueryable ) will receive this query and reply with paths/values that will be received by the receiver stream.
 
 Build
 ```bash
@@ -40,6 +41,22 @@ Run
 ```bash
 ./ZGet 
 ```
+
+### ZQueryable
+
+Declares a queryable function with a path.
+This queryable function will be triggered by each call to get with a selector that matches the path, and will return a value to the querier.
+
+Build
+```bash
+dotnet build ZQueryable/ZQueryable.csproj --configuration Release --property:Platform=x64  
+```
+
+Run
+```bash
+./ZQueryable
+```
+
 
 ### ZPut
 
