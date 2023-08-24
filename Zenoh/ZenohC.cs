@@ -630,7 +630,7 @@ internal unsafe struct ZOwnedClosureSample
 {
     internal void* context;
     internal ZOwnedClosureSampleCall call;
-    internal ZOwnedClosureSampleDrop drop;
+    internal ZOwnedClosureSampleDrop? drop;
 }
 
 // --------------------------------
@@ -649,7 +649,7 @@ internal unsafe struct ZOwnedClosureZId
 {
     internal void* context;
     internal ZOwnedClosureZIdCall call;
-    internal ZOwnedClosureZIdDrop drop;
+    internal ZOwnedClosureZIdDrop? drop;
 }
 
 internal unsafe delegate void ZOwnedClosureQueryCall(ZQuery* zQuery, void* context);
@@ -669,7 +669,7 @@ internal unsafe struct ZOwnedClosureQuery
 {
     internal void* context;
     internal ZOwnedClosureQueryCall call;
-    internal ZOwnedClosureQueryDrop drop;
+    internal ZOwnedClosureQueryDrop? drop;
 }
 
 // z_owned_closure_reply_t 
@@ -755,7 +755,7 @@ internal static unsafe class ZenohC
             return "";
         }
 
-        return Marshal.PtrToStringUTF8(zs->cstr);
+        return Marshal.PtrToStringUTF8(zs->cstr) ?? "";
     }
 
     internal static string ZKeyexprToString(ZKeyexpr keyexpr)

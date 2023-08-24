@@ -142,17 +142,8 @@ public class Session : IDisposable
 
     public bool PutStr(string key, string s, CongestionControl congestionControl, Priority priority)
     {
-        unsafe
-        {
-            byte[] data = Encoding.UTF8.GetBytes(s);
-            ZPutOptions options = new ZPutOptions
-            {
-                encoding = ZenohC.z_encoding(EncodingPrefix.TextPlain, null),
-                congestionControl = congestionControl,
-                priority = priority,
-            };
-            return _put(key, data, options);
-        }
+        byte[] data = Encoding.UTF8.GetBytes(s);
+        return _put(key, data, congestionControl, priority, EncodingPrefix.TextPlain);
     }
 
     public bool PutJson(string key, string value)
@@ -162,17 +153,8 @@ public class Session : IDisposable
 
     public bool PutJson(string key, string s, CongestionControl congestionControl, Priority priority)
     {
-        unsafe
-        {
-            byte[] data = Encoding.UTF8.GetBytes(s);
-            ZPutOptions options = new ZPutOptions
-            {
-                encoding = ZenohC.z_encoding(EncodingPrefix.AppJson, null),
-                congestionControl = congestionControl,
-                priority = priority,
-            };
-            return _put(key, data, options);
-        }
+        byte[] data = Encoding.UTF8.GetBytes(s);
+        return _put(key, data, congestionControl, priority, EncodingPrefix.AppJson);
     }
 
     public bool PutInt(string key, long value)
@@ -182,18 +164,9 @@ public class Session : IDisposable
 
     public bool PutInt(string key, long value, CongestionControl congestionControl, Priority priority)
     {
-        unsafe
-        {
-            string s = value.ToString("G");
-            byte[] data = Encoding.UTF8.GetBytes(s);
-            ZPutOptions options = new ZPutOptions
-            {
-                encoding = ZenohC.z_encoding(EncodingPrefix.AppInteger, null),
-                congestionControl = congestionControl,
-                priority = priority,
-            };
-            return _put(key, data, options);
-        }
+        string s = value.ToString("G");
+        byte[] data = Encoding.UTF8.GetBytes(s);
+        return _put(key, data, congestionControl, priority, EncodingPrefix.AppInteger);
     }
 
     public bool PutFloat(string key, double value)
@@ -203,21 +176,29 @@ public class Session : IDisposable
 
     public bool PutFloat(string key, double value, CongestionControl congestionControl, Priority priority)
     {
-        unsafe
-        {
-            string s = value.ToString("G");
-            byte[] data = Encoding.UTF8.GetBytes(s);
-            ZPutOptions options = new ZPutOptions
-            {
-                encoding = ZenohC.z_encoding(EncodingPrefix.AppFloat, null),
-                congestionControl = congestionControl,
-                priority = priority,
-            };
-            return _put(key, data, options);
-        }
+        string s = value.ToString("G");
+        byte[] data = Encoding.UTF8.GetBytes(s);
+        return _put(key, data, congestionControl, priority, EncodingPrefix.AppFloat);
     }
 
-    private bool _put(string key, byte[] value, ZPutOptions options)
+    public bool PutData(string key, byte[] value, EncodingPrefix encodingPrefix, byte[]? encodingSuffix = null)
+    {
+        return PutData(key, value, CongestionControl.Block, Priority.RealTime, encodingPrefix, encodingSuffix);
+    }
+
+    public bool PutData(string key, byte[] value,
+        CongestionControl congestionControl, Priority priority,
+        EncodingPrefix encodingPrefix, byte[]? encodingSuffix = null
+    )
+    {
+        return _put(key, value, congestionControl, priority, encodingPrefix, encodingSuffix);
+    }
+
+    private bool _put(
+        string key, byte[] value,
+        CongestionControl congestionControl, Priority priority,
+        EncodingPrefix encodingPrefix, byte[]? encodingSuffix = null
+    )
     {
         if (_disposed) return false;
         unsafe
@@ -230,7 +211,30 @@ public class Session : IDisposable
                 nint pKey = Marshal.StringToHGlobalAnsi(key);
                 ZSession session = ZenohC.z_session_loan(_session);
                 ZKeyexpr keyexpr = ZenohC.z_keyexpr((byte*)pKey);
-                r = ZenohC.z_put(session, keyexpr, pv, len, &options);
+                if (encodingSuffix is null)
+                {
+                    ZPutOptions options = new ZPutOptions
+                    {
+                        encoding = ZenohC.z_encoding(encodingPrefix, null),
+                        congestionControl = congestionControl,
+                        priority = priority,
+                    };
+                    r = ZenohC.z_put(session, keyexpr, pv, len, &options);
+                }
+                else
+                {
+                    fixed (byte* pEncodingSuffix = encodingSuffix)
+                    {
+                        ZPutOptions options = new ZPutOptions
+                        {
+                            encoding = ZenohC.z_encoding(encodingPrefix, pEncodingSuffix),
+                            congestionControl = congestionControl,
+                            priority = priority,
+                        };
+                        r = ZenohC.z_put(session, keyexpr, pv, len, &options);
+                    }
+                }
+
                 Marshal.FreeHGlobal(pKey);
             }
 
@@ -264,7 +268,14 @@ public class Session : IDisposable
         return _publisher_put(handle, data, EncodingPrefix.AppFloat);
     }
 
-    private bool _publisher_put(PublisherHandle handle, byte[] value, EncodingPrefix encodingPrefix)
+    public bool PubData(PublisherHandle handle, byte[] data, EncodingPrefix encodingPrefix,
+        byte[]? encodingSuffix = null)
+    {
+        return _publisher_put(handle, data, encodingPrefix, encodingSuffix);
+    }
+
+    private bool _publisher_put(PublisherHandle handle, byte[] value, EncodingPrefix encodingPrefix,
+        byte[]? encodingSuffix = null)
     {
         if (_disposed) return false;
         unsafe
@@ -273,15 +284,30 @@ public class Session : IDisposable
                 return false;
 
             ZPublisher pub = ZenohC.z_publisher_loan(publisher.ownedPublisher);
-            ZPublisherPutOptions options = new ZPublisherPutOptions
-            {
-                encoding = ZenohC.z_encoding(encodingPrefix, null),
-            };
             int r;
             fixed (byte* pv = value)
             {
-                nuint len = (nuint)value.Length;
-                r = ZenohC.z_publisher_put(pub, pv, len, &options);
+                if (encodingSuffix is null)
+                {
+                    ZPublisherPutOptions options = new ZPublisherPutOptions
+                    {
+                        encoding = ZenohC.z_encoding(encodingPrefix, null),
+                    };
+                    nuint len = (nuint)value.Length;
+                    r = ZenohC.z_publisher_put(pub, pv, len, &options);
+                }
+                else
+                {
+                    fixed (byte* pSuffix = encodingSuffix)
+                    {
+                        ZPublisherPutOptions options = new ZPublisherPutOptions
+                        {
+                            encoding = ZenohC.z_encoding(encodingPrefix, pSuffix),
+                        };
+                        nuint len = (nuint)value.Length;
+                        r = ZenohC.z_publisher_put(pub, pv, len, &options);
+                    }
+                }
             }
 
             return r == 0;

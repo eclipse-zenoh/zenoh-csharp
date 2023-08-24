@@ -66,9 +66,9 @@ public class Subscriber : IDisposable
 
     private static unsafe void Call(ZSample* zSample, void* context)
     {
-        GCHandle gch = GCHandle.FromIntPtr((nint)context);
-        SubscriberCallback callback = (SubscriberCallback)gch.Target;
-        Sample sample = new Sample(zSample);
+        var gch = GCHandle.FromIntPtr((nint)context);
+        var callback = (SubscriberCallback?)gch.Target;
+        var sample = new Sample(zSample);
         if (callback != null)
         {
             callback(sample);

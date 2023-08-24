@@ -67,9 +67,9 @@ public class Queryable : IDisposable
 
     private static unsafe void Call(ZQuery* zQuery, void* context)
     {
-        GCHandle gch = GCHandle.FromIntPtr((nint)context);
-        QueryableCallback callback = (QueryableCallback)gch.Target;
-        Query query = new Query(zQuery);
+        var gch = GCHandle.FromIntPtr((nint)context);
+        var callback = (QueryableCallback?)gch.Target;
+        var query = new Query(zQuery);
         if (callback != null)
         {
             callback(query);
