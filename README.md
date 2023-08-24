@@ -1,6 +1,6 @@
 ![zenoh banner](./zenoh-dragon.png)
 
-[![NuGet](https://img.shields.io/nuget/v/Zenoh-CS)](https://www.nuget.org/packages/Zenoh-CS/)
+[![NuGet](https://img.shields.io/nuget/v/Zenoh-CS?color=blue)](https://www.nuget.org/packages/Zenoh-CS/)
 [![License](https://img.shields.io/badge/License-EPL%202.0-blue)](https://choosealicense.com/licenses/epl-2.0/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
