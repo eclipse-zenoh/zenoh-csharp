@@ -124,7 +124,7 @@ class ClArgs
             listens.Add(s);
         }
 
-        config.SetConnect(listens.ToArray());
+        config.SetListen(listens.ToArray());
 
         return config;
     }

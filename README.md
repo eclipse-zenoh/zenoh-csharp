@@ -19,7 +19,7 @@ can be easily tested against a zenoh router running in a Docker container (see h
 
 Requirements:
 - The [zenoh-c](https://github.com/eclipse-zenoh/zenoh-c) library must be installed on your host
-- The zenoh C# library [Zenoh-CS](https://www.nuget.org/packages/Zenoh-CS/) is available on NuGet: 
+- The zenoh C# library [Zenoh-CS](https://www.nuget.org/packages/Zenoh-CS/) is available on NuGet(Only x64).
 
 ### Supported .NET Standards
 - .NET 6.0

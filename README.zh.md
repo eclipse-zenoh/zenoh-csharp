@@ -15,7 +15,7 @@ C# API是用于纯客户端的, 可以很容易地针对运行在Docker容器中
 
 需求:
 - 库 [zenoh-c](https://github.com/eclipse-zenoh/zenoh-c) 必需被安装在你的主机上.
-- Zenoh C# 库 [Zenoh-CS](https://www.nuget.org/packages/Zenoh-CS/) 库在NuGet上可用
+- Zenoh C# 库 [Zenoh-CS](https://www.nuget.org/packages/Zenoh-CS/) 库在NuGet上可用(只支持x64)
 
 ### 支持的 .NET 标准 
 - .NET 6.0

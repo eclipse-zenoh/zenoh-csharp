@@ -57,6 +57,13 @@ class Program
             ? $"Putting data float ('{keyFloat}': {dataFloat})"
             : "Putting data float fault!");
 
+        string keyBin = "demo/example/zenoh-cs-put/bin";
+        byte[] dataBin = { 0x1, 0x2, 0x3, 0x4 };
+        Console.WriteLine(
+            session.PutData(keyBin, dataBin, EncodingPrefix.AppCustom)
+                ? $"Putting data bin ('{keyBin}': {dataBin.Length} Byte"
+                : "Putting data bin fault!");
+
         session.Close();
     }
 }
@@ -108,7 +115,7 @@ class ClArgs
             listens.Add(s);
         }
 
-        config.SetConnect(listens.ToArray());
+        config.SetListen(listens.ToArray());
 
         return config;
     }

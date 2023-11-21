@@ -20,6 +20,7 @@ public class Queryable : IDisposable
     internal unsafe ZOwnedQueryable* zOwnedQueryable;
     internal unsafe ZOwnedClosureQuery* closureQuery;
     internal unsafe ZQueryableOptions* options;
+    private readonly ZOwnedClosureQuery _ownedClosureQuery;
     private GCHandle _userCallbackGcHandle;
     private bool _disposed;
 
@@ -32,14 +33,14 @@ public class Queryable : IDisposable
             zOwnedQueryable = null;
             _userCallbackGcHandle = GCHandle.Alloc(userCallback);
 
-            ZOwnedClosureQuery ownedClosureQuery = new ZOwnedClosureQuery
+            _ownedClosureQuery = new ZOwnedClosureQuery
             {
                 context = (void*)GCHandle.ToIntPtr(_userCallbackGcHandle),
                 call = Call,
                 drop = null,
             };
             nint p = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedClosureQuery>());
-            Marshal.StructureToPtr(ownedClosureQuery, p, false);
+            Marshal.StructureToPtr(_ownedClosureQuery, p, false);
             closureQuery = (ZOwnedClosureQuery*)p;
 
             nint pOptions = Marshal.AllocHGlobal(Marshal.SizeOf<ZQueryableOptions>());

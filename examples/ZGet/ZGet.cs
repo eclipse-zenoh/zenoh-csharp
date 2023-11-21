@@ -17,7 +17,7 @@ class Program
         bool ok = true;
         r.WithNotParsed(e => { ok = false; });
         if (!ok) return;
-        
+
         ClArgs clArgs = r.Value;
         Config? config = clArgs.ToConfig();
         if (config is null)
@@ -127,7 +127,7 @@ class ClArgs
             listens.Add(s);
         }
 
-        config.SetConnect(listens.ToArray());
+        config.SetListen(listens.ToArray());
 
         return config;
     }
