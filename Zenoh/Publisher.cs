@@ -549,7 +549,7 @@ public sealed class Publisher : IDisposable
         var pPublisherPutOptions = options.AllocUnmanagedMemory();
         var pLoanedPublisher = ZenohC.z_publisher_loan(HandleZOwnedPublisher);
 
-        var r = ZenohC.z_publisher_put(pLoanedPublisher, payload.HandleZOwnedBytes, pPublisherPutOptions);
+        var r = ZenohC.z_publisher_put(pLoanedPublisher, payload.Handle, pPublisherPutOptions);
 
         PublisherPutOptions.FreeUnmanagedMemory(pPublisherPutOptions);
         payload.Dispose();

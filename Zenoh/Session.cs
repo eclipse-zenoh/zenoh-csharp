@@ -192,31 +192,29 @@ public sealed class Session : IDisposable
     /// </param>
     /// <param name="subscriber"></param>
     /// <returns></returns>
-    public Result DeclareSubscriberCallback(Keyexpr keyexpr, SubscriberCallback.Cb callback,
-        out SubscriberCallback? subscriber)
+    public Result DeclareSubscriber(Keyexpr keyexpr, Subscriber.Cb callback,
+        out Subscriber? subscriber)
     {
         CheckDisposed();
         keyexpr.CheckDisposed();
-        
-        subscriber = null;
 
-        subscriber = new SubscriberCallback(callback);
-        var gcHandle = GCHandle.Alloc(subscriber);
+        var gcHandle = GCHandle.Alloc(callback);
 
         var pOwnedClosureSample = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedClosureSample>());
         ZenohC.z_closure_sample(
             pOwnedClosureSample,
-            SubscriberCallback.CallbackClosureSampleCall,
-            SubscriberCallback.CallbackClosureSampleDrop,
+            Subscriber.CallbackClosureSampleCall,
+            Subscriber.CallbackClosureSampleDrop,
             GCHandle.ToIntPtr(gcHandle)
         );
 
         var pLoanedSession = ZenohC.z_session_loan(HandleZOwnedSession);
         var pLoanedKeyexpr = ZenohC.z_keyexpr_loan(keyexpr.HandleZOwnedKeyexpr);
+        subscriber = new Subscriber();
 
         var r = ZenohC.z_declare_subscriber(
             pLoanedSession,
-            subscriber.HandleOwnedSubscriber,
+            subscriber.Handle,
             pLoanedKeyexpr,
             pOwnedClosureSample,
             nint.Zero
@@ -234,42 +232,43 @@ public sealed class Session : IDisposable
     }
 
     /// <summary>
-    /// Constructs and declares a callback type subscriber for a given key expression. 
+    /// Constructs and declares a subscriber for a given key expression. 
     /// </summary>
     /// <param name="keyexpr">The key expression to subscribe.</param>
     /// <param name="channelType">The buffer channel type selected.</param>
     /// <param name="channelSize">The buffer channel capacity.</param>
-    /// <param name="subscriber"></param>
+    /// <param name="handler"></param>
     /// <returns></returns>
-    public Result DeclareSubscriberBuffer(Keyexpr keyexpr, ChannelType channelType, uint channelSize,
-        out SubscriberBuffer? subscriber)
+    public Result DeclareSubscriber(Keyexpr keyexpr, ChannelType channelType, uint channelSize,
+        out (Subscriber, ChannelSample)? handler)
     {
         CheckDisposed();
         keyexpr.CheckDisposed();
-        
-        subscriber = null;
 
-        subscriber = new SubscriberBuffer(channelType);
         var pOwnedClosureSample = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedClosureSample>());
 
+        ChannelSample channel;
         switch (channelType)
         {
             case ChannelType.Ring:
-                ZenohC.z_ring_channel_sample_new(pOwnedClosureSample, subscriber.HandleChannel, channelSize);
+                channel = new ChannelSampleRing();
+                ZenohC.z_ring_channel_sample_new(pOwnedClosureSample, channel.Handle, channelSize);
                 break;
             case ChannelType.Fifo:
-                ZenohC.z_fifo_channel_sample_new(pOwnedClosureSample, subscriber.HandleChannel, channelSize);
+                channel = new ChannelSampleFifo();
+                ZenohC.z_fifo_channel_sample_new(pOwnedClosureSample, channel.Handle, channelSize);
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(channelType), channelType, null);
         }
 
+        Subscriber subscriber = new Subscriber();
         var pLoanedSession = ZenohC.z_session_loan(HandleZOwnedSession);
         var pLoanedKeyexpr = ZenohC.z_keyexpr_loan(keyexpr.HandleZOwnedKeyexpr);
 
         var r = ZenohC.z_declare_subscriber(
             pLoanedSession,
-            subscriber.HandleOwnedSubscriber,
+            subscriber.Handle,
             pLoanedKeyexpr,
             pOwnedClosureSample,
             nint.Zero
@@ -277,9 +276,15 @@ public sealed class Session : IDisposable
 
         Marshal.FreeHGlobal(pOwnedClosureSample);
 
-        if (r == Result.Ok) return Result.Ok;
+        if (r == Result.Ok)
+        {
+            handler = (subscriber, channel);
+            return Result.Ok;
+        }
 
         subscriber.Dispose();
+        channel.Dispose();
+        handler = null;
         return r;
     }
 
@@ -303,7 +308,7 @@ public sealed class Session : IDisposable
         
         var pLoanedSession = ZenohC.z_session_loan(HandleZOwnedSession);
         var pLoanedKeyexpr = ZenohC.z_keyexpr_loan(keyexpr.HandleZOwnedKeyexpr);
-        var pMovedBytes = payload.HandleZOwnedBytes;
+        var pMovedBytes = payload.Handle;
         var pPutOptions = options.AllocUnmanagedMemory();
         
         var r = ZenohC.z_put(pLoanedSession, pLoanedKeyexpr, pMovedBytes, pPutOptions);
@@ -313,7 +318,6 @@ public sealed class Session : IDisposable
 
         return r;
     }
-
 
 
     /// <summary>

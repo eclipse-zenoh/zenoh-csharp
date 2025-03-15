@@ -166,22 +166,22 @@ public enum EncodingId : ushort
     VideoVp9 = 52,
 }
 
-public sealed class Encoding : IDisposable
+// z_owned_encoding_t*
+public sealed class Encoding : Loanable
 {
-    // z_owned_encoding_t*
-    internal nint HandleZOwnedEncoding { get; private set; }
-
     public Encoding()
     {
         var pZOwnedEncoding = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedEncoding>());
         var pZLoanedEncoding = ZenohC.z_encoding_loan_default();
         ZenohC.z_encoding_clone(pZOwnedEncoding, pZLoanedEncoding);
-        HandleZOwnedEncoding = pZOwnedEncoding;
+        Handle = pZOwnedEncoding;
+        Owned = true;
     }
 
-    private Encoding(nint handle)
+    private Encoding(nint handle, bool owned)
     {
-        HandleZOwnedEncoding = handle;
+        Handle = handle;
+        Owned = owned;
     }
 
     public Encoding(Encoding other)
@@ -189,19 +189,12 @@ public sealed class Encoding : IDisposable
         other.CheckDisposed();
 
         var pZOwnedEncoding = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedEncoding>());
-        var pZLoanedEncoding = ZenohC.z_encoding_loan(other.HandleZOwnedEncoding);
+        var pZLoanedEncoding = other.LoanedPointer();
         ZenohC.z_encoding_clone(pZOwnedEncoding, pZLoanedEncoding);
-        HandleZOwnedEncoding = pZOwnedEncoding;
+        Handle = pZOwnedEncoding;
+        Owned = true;
     }
 
-
-    // 'handle' z_loaned_encoding_t*
-    internal static Encoding CloneFromLoaned(nint handle)
-    {
-        var pZOwnedEncoding = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedEncoding>());
-        ZenohC.z_encoding_clone(pZOwnedEncoding, handle);
-        return new Encoding(pZOwnedEncoding);
-    }
 
     public Encoding(EncodingId id)
     {
@@ -266,10 +259,11 @@ public sealed class Encoding : IDisposable
         };
 
         ZenohC.z_encoding_clone(pZOwnedEncoding, pEncoding);
-        HandleZOwnedEncoding = pZOwnedEncoding;
+        Handle = pZOwnedEncoding;
+        Owned = true;
     }
 
-    public void Dispose()
+    public override void Dispose()
     {
         Dispose(true);
         GC.SuppressFinalize(this);
@@ -279,19 +273,38 @@ public sealed class Encoding : IDisposable
 
     private void Dispose(bool disposing)
     {
-        if (HandleZOwnedEncoding == nint.Zero) return;
+        if (Handle == nint.Zero) return;
 
-        ZenohC.z_encoding_drop(HandleZOwnedEncoding);
-        Marshal.FreeHGlobal(HandleZOwnedEncoding);
-        HandleZOwnedEncoding = nint.Zero;
+        ZenohC.z_encoding_drop(Handle);
+        Marshal.FreeHGlobal(Handle);
+        Handle = nint.Zero;
+    }
+    
+    // 'handle' z_loaned_encoding_t*
+    internal static Encoding CreateLoaned(nint handle)
+    {
+        return new Encoding(handle, false);
     }
 
-    internal void CheckDisposed()
+    internal static Encoding CreateOwned()
     {
-        if (HandleZOwnedEncoding == nint.Zero)
-        {
-            throw new InvalidOperationException("Object has been destroyed");
-        }
+        return new Encoding();
+    }
+
+    public override void ToOwned()
+    {
+        if (Owned) return;
+
+        var pZOwnedEncoding = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedEncoding>());
+        var pZLoanedEncoding = LoanedPointer();
+        ZenohC.z_encoding_clone(pZOwnedEncoding, pZLoanedEncoding);
+        Handle = pZOwnedEncoding;
+        Owned = true;
+    }
+
+    internal override nint LoanedPointer()
+    {
+        return Owned ? ZenohC.z_encoding_loan(Handle) : Handle;
     }
 
     /// <summary>
@@ -304,8 +317,8 @@ public sealed class Encoding : IDisposable
         CheckDisposed();
         other.CheckDisposed();
 
-        var pThis = ZenohC.z_encoding_loan(HandleZOwnedEncoding);
-        var pOther = ZenohC.z_encoding_loan(other.HandleZOwnedEncoding);
+        var pThis = LoanedPointer();
+        var pOther = other.LoanedPointer();
         return ZenohC.z_encoding_equals(pThis, pOther);
     }
 
@@ -313,9 +326,9 @@ public sealed class Encoding : IDisposable
     {
         CheckDisposed();
 
-        var pZLoanedEncoding = ZenohC.z_encoding_loan(HandleZOwnedEncoding);
+        var pZLoanedEncoding = ZenohC.z_encoding_loan(Handle);
         var zString = new ZString();
-        ZenohC.z_encoding_to_string(pZLoanedEncoding, zString.HandleZOwnedString);
+        ZenohC.z_encoding_to_string(pZLoanedEncoding, zString.Handle);
         return zString;
     }
 
@@ -344,7 +357,7 @@ public sealed class Encoding : IDisposable
         CheckDisposed();
 
         var pS = Marshal.StringToHGlobalAnsi(schema);
-        var pLoanedEncoding = ZenohC.z_encoding_loan_mut(HandleZOwnedEncoding);
+        var pLoanedEncoding = ZenohC.z_encoding_loan_mut(Handle);
         var r = ZenohC.z_encoding_set_schema_from_str(pLoanedEncoding, pS);
         Marshal.FreeHGlobal(pS);
         return r;
@@ -354,7 +367,7 @@ public sealed class Encoding : IDisposable
     {
         CheckDisposed();
 
-        var pLoanedEncoding = ZenohC.z_encoding_loan(HandleZOwnedEncoding);
+        var pLoanedEncoding = ZenohC.z_encoding_loan(Handle);
         var encodingData = ZenohC.zc_internal_encoding_get_data(pLoanedEncoding);
         return Marshal.PtrToStringAnsi(encodingData.schema_ptr, (int)encodingData.schema_len);
     }
@@ -363,7 +376,7 @@ public sealed class Encoding : IDisposable
     {
         CheckDisposed();
 
-        var pLoanedEncoding = ZenohC.z_encoding_loan(HandleZOwnedEncoding);
+        var pLoanedEncoding = ZenohC.z_encoding_loan(Handle);
         var encodingData = ZenohC.zc_internal_encoding_get_data(pLoanedEncoding);
         return (EncodingId)encodingData.id;
     }
@@ -372,7 +385,7 @@ public sealed class Encoding : IDisposable
     internal nint AllocUnmanagedMemory()
     {
         var pZOwnedEncoding = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedEncoding>());
-        var pZLoanedEncoding = ZenohC.z_encoding_loan(HandleZOwnedEncoding);
+        var pZLoanedEncoding = ZenohC.z_encoding_loan(Handle);
         ZenohC.z_encoding_clone(pZOwnedEncoding, pZLoanedEncoding);
         return pZOwnedEncoding;
     }

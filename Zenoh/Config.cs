@@ -109,7 +109,7 @@ public sealed class Config : IDisposable
         
         var zString = new ZString();
         var pLoanedConfig = ZenohC.z_config_loan(HandleZOwnedConfig);
-        var r = ZenohC.zc_config_to_string(pLoanedConfig, zString.HandleZOwnedString);
+        var r = ZenohC.zc_config_to_string(pLoanedConfig, zString.Handle);
         return r == Result.Ok ? zString : null;
     }
 }

@@ -2751,23 +2751,39 @@ internal static unsafe class ZenohC
         ExactSpelling = true)]
     internal static extern void z_internal_queryable_null(ZOwnedQueryable* queryable);
 
+    /// bool
+    /// z_internal_reply_check(
+    ///     const struct z_owned_reply_t *this_
+    /// )
     [DllImport(DllName, EntryPoint = "z_internal_reply_check", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
     [return: MarshalAs(UnmanagedType.U1)]
-    internal static extern bool z_internal_reply_check(ZOwnedReply* reply);
+    internal static extern bool z_internal_reply_check(nint reply);
 
+    /// void
+    /// z_internal_reply_null(
+    ///     struct z_owned_reply_t *this_
+    /// )
     [DllImport(DllName, EntryPoint = "z_internal_reply_null", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern void z_internal_reply_null(ZOwnedReply* reply);
+    internal static extern void z_internal_reply_null(nint reply);
 
+    /// bool
+    /// z_internal_reply_err_check(
+    ///     const struct z_owned_reply_err_t *this_
+    /// )
     [DllImport(DllName, EntryPoint = "z_internal_reply_err_check", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
     [return: MarshalAs(UnmanagedType.U1)]
-    internal static extern bool z_internal_reply_err_check(ZOwnedReplyErr* replyErr);
+    internal static extern bool z_internal_reply_err_check(nint replyErr);
 
+    /// void
+    /// z_internal_reply_err_null(
+    ///     struct z_owned_reply_err_t *this_
+    /// )
     [DllImport(DllName, EntryPoint = "z_internal_reply_err_null", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern void z_internal_reply_err_null(ZOwnedReplyErr* replyErr);
+    internal static extern void z_internal_reply_err_null(nint replyErr);
 
     [DllImport(DllName, EntryPoint = "z_internal_ring_handler_query_check", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
@@ -3353,50 +3369,120 @@ internal static unsafe class ZenohC
     [return: MarshalAs(UnmanagedType.U8)]
     internal static extern ulong z_random_u64();
 
+    /// void
+    /// z_reply_clone(
+    ///     struct z_owned_reply_t *dst,
+    ///     const struct z_loaned_reply_t *this_
+    /// )
     [DllImport(DllName, EntryPoint = "z_reply_clone", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern void z_reply_clone(ZOwnedReply* dst, ZLoanedReply* src);
+    internal static extern void z_reply_clone(nint dst, nint src);
 
+    /// void
+    /// z_reply_drop(
+    ///     struct z_moved_reply_t *this_
+    /// )
     [DllImport(DllName, EntryPoint = "z_reply_drop", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern void z_reply_drop(ZMovedReply* reply);
-
-    [DllImport(DllName, EntryPoint = "z_reply_err", CallingConvention = CallingConvention.Cdecl,
-        ExactSpelling = true)]
-    internal static extern ZLoanedReplyErr* z_reply_err(ZLoanedReply* reply);
-
-    [DllImport(DllName, EntryPoint = "z_reply_err_clone", CallingConvention = CallingConvention.Cdecl,
-        ExactSpelling = true)]
-    internal static extern void z_reply_err_clone(ZOwnedReplyErr* dst, ZLoanedReplyErr* src);
-
-    [DllImport(DllName, EntryPoint = "z_reply_err_drop", CallingConvention = CallingConvention.Cdecl,
-        ExactSpelling = true)]
-    internal static extern void z_reply_err_drop(ZMovedReplyErr* replyErr);
-
-    [DllImport(DllName, EntryPoint = "z_reply_err_encoding", CallingConvention = CallingConvention.Cdecl,
-        ExactSpelling = true)]
-    internal static extern ZLoanedEncoding* z_reply_err_encoding(ZLoanedReplyErr* replyErr);
-
-    [DllImport(DllName, EntryPoint = "z_reply_err_loan", CallingConvention = CallingConvention.Cdecl,
-        ExactSpelling = true)]
-    internal static extern ZLoanedReplyErr* z_reply_err_loan(ZOwnedReplyErr* replyErr);
-
-    [DllImport(DllName, EntryPoint = "z_reply_err_payload", CallingConvention = CallingConvention.Cdecl,
-        ExactSpelling = true)]
-    internal static extern ZLoanedBytes* z_reply_err_payload(ZLoanedReplyErr* replyErr);
-
+    internal static extern void z_reply_drop(nint reply);
+    
+    /// bool
+    /// z_reply_is_ok(
+    ///     const struct z_loaned_reply_t *this_
+    /// )
     [DllImport(DllName, EntryPoint = "z_reply_is_ok", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
     [return: MarshalAs(UnmanagedType.U1)]
-    internal static extern bool z_reply_is_ok(ZLoanedReply* reply);
+    internal static extern bool z_reply_is_ok(nint reply);
 
+    /// const struct z_loaned_reply_t*
+    /// z_reply_loan(
+    ///     const struct z_owned_reply_t *this_
+    /// )
     [DllImport(DllName, EntryPoint = "z_reply_loan", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern ZLoanedReply* z_reply_loan(ZOwnedReply* reply);
+    internal static extern nint z_reply_loan(nint reply);
+    
+    /// struct z_loaned_reply_t*
+    /// z_reply_loan(
+    ///     struct z_owned_reply_t *this_
+    /// )
+    [DllImport(DllName, EntryPoint = "z_reply_loan_mut", CallingConvention = CallingConvention.Cdecl,
+        ExactSpelling = true)]
+    internal static extern nint z_reply_loan_mut(nint reply);
 
+    /// const struct z_loaned_sample_t*
+    /// z_reply_ok(
+    ///     const struct z_loaned_reply_t *this_
+    /// )
     [DllImport(DllName, EntryPoint = "z_reply_ok", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern ZLoanedSample* z_reply_ok(ZLoanedReply* reply);
+    internal static extern nint z_reply_ok(nint reply);
+    
+    /// struct z_loaned_sample_t*
+    /// z_reply_ok(
+    ///     struct z_loaned_reply_t *this_
+    /// )
+    [DllImport(DllName, EntryPoint = "z_reply_ok_mut", CallingConvention = CallingConvention.Cdecl,
+        ExactSpelling = true)]
+    internal static extern nint z_reply_ok_mut(nint reply);
+
+    /// const struct z_loaned_reply_err_t*
+    /// z_reply_err(
+    ///     const struct z_loaned_reply_t *this_
+    /// )
+    [DllImport(DllName, EntryPoint = "z_reply_err", CallingConvention = CallingConvention.Cdecl,
+        ExactSpelling = true)]
+    internal static extern nint z_reply_err(nint reply);
+
+    /// void
+    /// z_reply_err_clone(
+    ///     struct z_owned_reply_err_t *dst,
+    ///     const struct z_loaned_reply_err_t *this_
+    /// )
+    [DllImport(DllName, EntryPoint = "z_reply_err_clone", CallingConvention = CallingConvention.Cdecl,
+        ExactSpelling = true)]
+    internal static extern void z_reply_err_clone(nint dst, nint src);
+
+    /// void
+    /// z_reply_err_drop(
+    ///     struct z_moved_reply_err_t *this_
+    /// )
+    [DllImport(DllName, EntryPoint = "z_reply_err_drop", CallingConvention = CallingConvention.Cdecl,
+        ExactSpelling = true)]
+    internal static extern void z_reply_err_drop(nint replyErr);
+
+    /// const struct z_loaned_reply_err_t*
+    /// z_reply_err_loan(
+    ///     const struct z_owned_reply_err_t *this_
+    /// )
+    [DllImport(DllName, EntryPoint = "z_reply_err_loan", CallingConvention = CallingConvention.Cdecl,
+        ExactSpelling = true)]
+    internal static extern nint z_reply_err_loan(nint replyErr);
+    
+    /// struct z_loaned_reply_err_t*
+    /// z_reply_err_loan_mut(
+    ///     struct z_owned_reply_err_t *this_
+    /// )
+    [DllImport(DllName, EntryPoint = "z_reply_err_loan_mut", CallingConvention = CallingConvention.Cdecl,
+        ExactSpelling = true)]
+    internal static extern nint z_reply_err_loan_mut(nint replyErr);
+
+    /// const struct z_loaned_bytes_t*
+    /// z_reply_err_payload(
+    ///     const struct z_loaned_reply_err_t *this_
+    /// )
+    [DllImport(DllName, EntryPoint = "z_reply_err_payload", CallingConvention = CallingConvention.Cdecl,
+        ExactSpelling = true)]
+    internal static extern nint z_reply_err_payload(nint replyErr);
+
+    /// const struct z_loaned_encoding_t*
+    /// z_reply_err_encoding(
+    ///     const struct z_loaned_reply_err_t *this_
+    /// )
+    [DllImport(DllName, EntryPoint = "z_reply_err_encoding", CallingConvention = CallingConvention.Cdecl,
+        ExactSpelling = true)]
+    internal static extern nint z_reply_err_encoding(nint replyErr);
 
     [DllImport(DllName, EntryPoint = "z_ring_channel_query_new", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]

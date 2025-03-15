@@ -3,9 +3,25 @@ using System.Runtime.InteropServices;
 
 namespace Zenoh;
 
+/// <summary>
+/// Buffer channel type. There are ring or fifo buffer channel inside.
+/// </summary>
 public enum ChannelType
 {
+    /// <summary>
+    /// Ring buffer channel,
+    /// a synchronous ring channel with a limited size that allows users to keep the last N data.
+    /// RingChannel implements FIFO semantics with a dropping strategy when full.
+    /// The oldest elements will be dropped when newer arrive.
+    /// </summary>
     Ring,
+
+    /// <summary>
+    /// Fifo buffer channel,
+    /// that pushing on a full FifoChannel that is full will block until a slot is available.
+    /// E.g., a slow subscriber could block the underlying Zenoh thread because it is not emptying the FifoChannel fast enough.
+    /// In this case, you may want to look into RingChannel that will drop samples when full.
+    /// </summary>
     Fifo
 }
 
@@ -38,8 +54,8 @@ public abstract class ChannelSample: Channel
     /// </summary>
     /// <param name="sample"></param>
     /// <returns>
-    /// <para>"ZResult.Ok" in case of success.</para>
-    /// <para>"ZResult.ChannelDisconnected" if channel was dropped (the sample will be set to "null").</para>
+    /// <para>"Result.Ok" in case of success.</para>
+    /// <para>"Result.ChannelDisconnected" if channel was dropped (the sample will be set to "null").</para>
     /// </returns>
     public abstract Result Recv(out Sample? sample);
 
@@ -53,9 +69,9 @@ public abstract class ChannelSample: Channel
     /// </summary>
     /// <param name="sample"></param>
     /// <returns>
-    /// <para>"ZResult.Ok" in case of success.</para>
-    /// <para>"ZResult.ChannelDisconnected" if channel was dropped (the sample will be set to "null").</para>
-    /// <para>"ZResult.ChannelNodata" if the channel is still alive, but its buffer is empty (the sample will be set to "null").</para>
+    /// <para>"Result.Ok" in case of success.</para>
+    /// <para>"Result.ChannelDisconnected" if channel was dropped (the sample will be set to "null").</para>
+    /// <para>"Result.ChannelNodata" if the channel is still alive, but its buffer is empty (the sample will be set to "null").</para>
     /// </returns>
     public abstract Result TryRecv(out Sample? sample);
 
@@ -94,7 +110,7 @@ public sealed class ChannelSampleRing : ChannelSample
     {
         CheckDisposed();
         
-        sample = Sample.CreateOwnedSample();
+        sample = Sample.CreateOwned();
         var pLoanedRingHandlerSample = ZenohC.z_ring_handler_sample_loan(Handle);
         
         var r = ZenohC.z_ring_handler_sample_recv(pLoanedRingHandlerSample, sample.Handle);
@@ -110,7 +126,7 @@ public sealed class ChannelSampleRing : ChannelSample
     {
         CheckDisposed();   
         
-        sample = Sample.CreateOwnedSample();
+        sample = Sample.CreateOwned();
         var pLoanedRingHandlerSample = ZenohC.z_ring_handler_sample_loan(Handle);
         
         var r = ZenohC.z_ring_handler_sample_try_recv(pLoanedRingHandlerSample, sample.Handle);
@@ -127,7 +143,7 @@ public sealed class ChannelSampleFifo : ChannelSample
 {
     // z_owned_fifo_handler_sample_t
     
-    private ChannelSampleFifo()
+    internal ChannelSampleFifo()
     {
         ChannelType = ChannelType.Fifo;
         var pChannel = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedFifoHandlerSample>());
@@ -156,7 +172,7 @@ public sealed class ChannelSampleFifo : ChannelSample
     {
         CheckDisposed();
         
-        sample = Sample.CreateOwnedSample();
+        sample = Sample.CreateOwned();
         var pLoanedFifoHandlerSample = ZenohC.z_fifo_handler_sample_loan(Handle);
         
         var r = ZenohC.z_fifo_handler_sample_recv(pLoanedFifoHandlerSample, sample.Handle);
@@ -172,7 +188,7 @@ public sealed class ChannelSampleFifo : ChannelSample
     {
         CheckDisposed();
         
-        sample = Sample.CreateOwnedSample();
+        sample = Sample.CreateOwned();
         var pLoanedFifoHandlerSample = ZenohC.z_fifo_handler_sample_loan(Handle);
         
         var r = ZenohC.z_fifo_handler_sample_try_recv(pLoanedFifoHandlerSample, sample.Handle);
@@ -185,7 +201,51 @@ public sealed class ChannelSampleFifo : ChannelSample
     }
 }
 
+
+
 public abstract class ChannelReply : Channel
 {
+    /// <summary>
+    /// <para>
+    /// Returns sample from the buffer channel.
+    /// </para>
+    /// <para>
+    /// If there are no more pending replies will block until next sample is received,
+    /// or until the channel is dropped (normally when there are no more samples to receive).
+    /// </para>
+    /// </summary>
+    /// <param name="sample"></param>
+    /// <returns>
+    /// <para>"Result.Ok" in case of success.</para>
+    /// <para>"Result.ChannelDisconnected" if channel was dropped (the sample will be set to "null").</para>
+    /// </returns>
+    public abstract Result Recv(out Sample? sample);
+
+    /// <summary>
+    /// <para>
+    /// Returns sample from the buffer channel.
+    /// </para>
+    /// <para>
+    /// If there are no more pending replies will return immediately (with sample set to null).
+    /// </para>
+    /// </summary>
+    /// <param name="sample"></param>
+    /// <returns>
+    /// <para>"Result.Ok" in case of success.</para>
+    /// <para>"Result.ChannelDisconnected" if channel was dropped (the sample will be set to "null").</para>
+    /// <para>"Result.ChannelNodata" if the channel is still alive, but its buffer is empty (the sample will be set to "null").</para>
+    /// </returns>
+    public abstract Result TryRecv(out Sample? sample);
 }
+
+public sealed class ChannelReplyRing : ChannelReply
+{
+    // z_owned_ring_handler_reply_t
+}
+
+public sealed class ChannelReplyFifo : ChannelReply
+{
+    // z_owned_fifo_handler_reply_t
+}
+
 
