@@ -59,14 +59,16 @@ public sealed class Subscriber : IDisposable
     /// <summary>
     /// Returns the key expression of the subscriber.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>
+    /// The return Keyexpr is loaned.
+    /// </returns>
     public Keyexpr GetKeyexpr()
     {
         CheckDisposed();
 
         var pLoanedSubscriber = ZenohC.z_subscriber_loan(Handle);
         var pLoanedKeyexpr = ZenohC.z_subscriber_keyexpr(pLoanedSubscriber);
-        return Keyexpr.CloneFromLoaned(pLoanedKeyexpr);
+        return Keyexpr.CreateLoaned(pLoanedKeyexpr);
     }
     
     internal static void CallbackClosureSampleCall(nint sample, nint context)

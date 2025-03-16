@@ -4,19 +4,19 @@ using System.Text;
 
 namespace Zenoh;
 
-public abstract class Loanable: IDisposable
+public abstract class Loanable : IDisposable
 {
     /// 'true' in case owned, 'false' in case loaned 
     public bool Owned { get; private protected set; }
-    
-    internal nint Handle{get; private protected set;}
-    
+
+    internal nint Handle { get; private protected set; }
+
     public abstract void Dispose();
 
     public abstract void ToOwned();
 
     internal abstract nint LoanedPointer();
-    
+
     internal void CheckDisposed()
     {
         if (Handle == nint.Zero)
@@ -82,7 +82,7 @@ public sealed class ZString : Loanable
             ZenohC.z_string_drop(Handle);
             Marshal.FreeHGlobal(Handle);
         }
-        
+
         Handle = nint.Zero;
     }
 
@@ -185,7 +185,7 @@ internal sealed class ViewString : IDisposable
 }
 
 // z_owned_bytes_t
-public sealed class ZBytes :  Loanable
+public sealed class ZBytes : Loanable
 {
     public ZBytes()
     {
@@ -201,7 +201,7 @@ public sealed class ZBytes :  Loanable
 
         var pOwnedBytes = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedBytes>());
         var pLoanedBytes = other.LoanedPointer();
-        ZenohC.z_bytes_clone(pOwnedBytes,pLoanedBytes);
+        ZenohC.z_bytes_clone(pOwnedBytes, pLoanedBytes);
         Handle = pOwnedBytes;
         Owned = true;
     }
@@ -211,7 +211,7 @@ public sealed class ZBytes :  Loanable
         Handle = handle;
         Owned = owned;
     }
-    
+
     public override void Dispose()
     {
         Dispose(true);
@@ -247,10 +247,10 @@ public sealed class ZBytes :  Loanable
     public override void ToOwned()
     {
         if (Owned) return;
-        
+
         var pOwnedBytes = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedBytes>());
         var pLoanedBytes = LoanedPointer();
-        ZenohC.z_bytes_clone(pOwnedBytes,pLoanedBytes);
+        ZenohC.z_bytes_clone(pOwnedBytes, pLoanedBytes);
         Handle = pOwnedBytes;
         Owned = true;
     }
@@ -291,19 +291,29 @@ public sealed class ZBytes :  Loanable
     }
 }
 
-public sealed class ZSlice : IDisposable
+// z_owned_slice_t
+public sealed class ZSlice : Loanable
 {
-    // z_owned_slice_t*
-    internal nint Handle { get; private set; }
-
     public ZSlice()
     {
         var pOwnedSlice = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedSlice>());
         ZenohC.z_slice_empty(pOwnedSlice);
         Handle = pOwnedSlice;
+        Owned = true;
     }
 
-    public void Dispose()
+    public ZSlice(ZSlice other)
+    {
+        other.CheckDisposed();
+        
+        var pOwnedSlice = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedSlice>());
+        var pLoanedSlice = other.LoanedPointer();
+        ZenohC.z_slice_clone(pOwnedSlice, pLoanedSlice);
+        Handle = pOwnedSlice;
+        Owned = true;
+    }
+
+    public override void Dispose()
     {
         Dispose(true);
         GC.SuppressFinalize(this);
@@ -315,9 +325,29 @@ public sealed class ZSlice : IDisposable
     {
         if (Handle == nint.Zero) return;
 
-        ZenohC.z_slice_drop(Handle);
-        Marshal.FreeHGlobal(Handle);
+        if (Owned)
+        {
+            ZenohC.z_slice_drop(Handle);
+            Marshal.FreeHGlobal(Handle);
+        }
+        
         Handle = nint.Zero;
+    }
+
+    internal override nint LoanedPointer()
+    {
+        return Owned? ZenohC.z_slice_loan(Handle) : Handle;
+    }
+
+    public override void ToOwned()
+    {
+        if (Owned) return;
+        
+        var pOwnedSlice = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedSlice>());
+        var pLoanedSlice = LoanedPointer();
+        ZenohC.z_slice_clone(pOwnedSlice, pLoanedSlice);
+        Handle = pOwnedSlice;
+        Owned = true;
     }
 
     public bool IsEmpty()
@@ -476,19 +506,18 @@ public sealed class Id
     }
 }
 
-public sealed class Keyexpr : IDisposable
+// z_owned_keyexpr_t
+public sealed class Keyexpr : Loanable
 {
-    // z_owned_keyexpr_t*
-    internal nint HandleZOwnedKeyexpr { get; private set; }
-
     private Keyexpr()
     {
         throw new InvalidOperationException();
     }
 
-    private Keyexpr(nint handle)
+    private Keyexpr(nint handle, bool owned)
     {
-        HandleZOwnedKeyexpr = handle;
+        Handle = handle;
+        Owned = owned;
     }
 
     public Keyexpr(Keyexpr other)
@@ -496,17 +525,16 @@ public sealed class Keyexpr : IDisposable
         other.CheckDisposed();
 
         var pOwnedKeyexpr = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedKeyexpr>());
-        var pOtherKeyexpr = ZenohC.z_keyexpr_loan(other.HandleZOwnedKeyexpr);
+        var pOtherKeyexpr = other.LoanedPointer();
         ZenohC.z_keyexpr_clone(pOwnedKeyexpr, pOtherKeyexpr);
-        HandleZOwnedKeyexpr = pOwnedKeyexpr;
+        Handle = pOwnedKeyexpr;
+        Owned = true;
     }
 
     // 'handle' z_loaned_keyexpr*
-    internal static Keyexpr CloneFromLoaned(nint handle)
+    internal static Keyexpr CreateLoaned(nint handle)
     {
-        var pOwnedKeyexpr = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedKeyexpr>());
-        ZenohC.z_keyexpr_clone(pOwnedKeyexpr, handle);
-        return new Keyexpr(pOwnedKeyexpr);
+        return new Keyexpr(handle,false);
     }
 
     public static Keyexpr? Create(string keyexpr)
@@ -515,27 +543,26 @@ public sealed class Keyexpr : IDisposable
         var pKeyexpr = Marshal.StringToHGlobalAnsi(keyexpr);
         var r = ZenohC.z_keyexpr_from_str_autocanonize(pOwnedKeyexpr, pKeyexpr);
         Marshal.FreeHGlobal(pKeyexpr);
-        if (r == Result.Ok) return new Keyexpr(pOwnedKeyexpr);
+        if (r == Result.Ok) return new Keyexpr(pOwnedKeyexpr, true);
 
         Marshal.FreeHGlobal(pOwnedKeyexpr);
         return null;
     }
-
 
     /// Constructs key expression by performing path-joining (automatically inserting '/' in-between) of `left` with `right`.
     public static Keyexpr? Join(Keyexpr left, Keyexpr right)
     {
         var pOwnedKeyexpr = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedKeyexpr>());
-        var pLeft = ZenohC.z_keyexpr_loan(left.HandleZOwnedKeyexpr);
-        var pRight = ZenohC.z_keyexpr_loan(right.HandleZOwnedKeyexpr);
+        var pLeft = left.LoanedPointer();
+        var pRight = right.LoanedPointer();
         var r = ZenohC.z_keyexpr_join(pOwnedKeyexpr, pLeft, pRight);
-        if (r == Result.Ok) return new Keyexpr(pOwnedKeyexpr);
+        if (r == Result.Ok) return new Keyexpr(pOwnedKeyexpr, true);
 
         Marshal.FreeHGlobal(pOwnedKeyexpr);
         return null;
     }
-
-    public void Dispose()
+    
+    public override void Dispose()
     {
         Dispose(true);
         GC.SuppressFinalize(this);
@@ -545,23 +572,35 @@ public sealed class Keyexpr : IDisposable
 
     private void Dispose(bool disposing)
     {
-        if (HandleZOwnedKeyexpr == IntPtr.Zero) return;
+        if (Handle == nint.Zero) return;
 
-        ZenohC.z_keyexpr_drop(HandleZOwnedKeyexpr);
-        Marshal.FreeHGlobal(HandleZOwnedKeyexpr);
-        HandleZOwnedKeyexpr = IntPtr.Zero;
+        if (Owned)
+        {
+            ZenohC.z_keyexpr_drop(Handle);
+            Marshal.FreeHGlobal(Handle);
+        }
+
+        Handle = nint.Zero;
     }
 
-    internal void CheckDisposed()
+    public override void ToOwned()
     {
-        if (HandleZOwnedKeyexpr == nint.Zero)
-        {
-            throw new InvalidOperationException("Object has been destroyed");
-        }
+        if (Owned) return;
+
+        var pOwnedKeyexpr = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedKeyexpr>());
+        var pLoanedKeyexpr = LoanedPointer();
+        ZenohC.z_keyexpr_clone(pOwnedKeyexpr, pLoanedKeyexpr);
+        Handle = pOwnedKeyexpr;
+        Owned = true;
+    }
+
+    internal override nint LoanedPointer()
+    {
+        return Owned? ZenohC.z_keyexpr_loan(Handle) : Handle;
     }
 
     /// <summary>
-    /// Returns ZResult.Ok if the passed string is a valid (and canon) key expression.
+    /// Returns Result.Ok if the passed string is a valid (and canon) key expression.
     /// </summary>
     /// <param name="keyexpr"></param>
     /// <returns></returns>
@@ -583,8 +622,8 @@ public sealed class Keyexpr : IDisposable
 
     public bool Equals(Keyexpr other)
     {
-        var pThis = ZenohC.z_keyexpr_loan(HandleZOwnedKeyexpr);
-        var pOther = ZenohC.z_keyexpr_loan(other.HandleZOwnedKeyexpr);
+        var pThis = LoanedPointer();
+        var pOther = other.LoanedPointer();
         return ZenohC.z_keyexpr_equals(pThis, pOther);
     }
 
@@ -592,8 +631,8 @@ public sealed class Keyexpr : IDisposable
     /// i.e. the set defined by `this` contains every key belonging to the set defined by `other`.
     public bool Includes(Keyexpr other)
     {
-        var pThis = ZenohC.z_keyexpr_loan(HandleZOwnedKeyexpr);
-        var pOther = ZenohC.z_keyexpr_loan(other.HandleZOwnedKeyexpr);
+        var pThis = LoanedPointer();
+        var pOther = other.LoanedPointer();
         return ZenohC.z_keyexpr_includes(pThis, pOther);
     }
 
@@ -601,15 +640,15 @@ public sealed class Keyexpr : IDisposable
     /// i.e. there exists at least one key which is contained in both of the sets defined by `this` and `other`.
     public bool Intersects(Keyexpr other)
     {
-        var pThis = ZenohC.z_keyexpr_loan(HandleZOwnedKeyexpr);
-        var pOther = ZenohC.z_keyexpr_loan(other.HandleZOwnedKeyexpr);
+        var pThis = LoanedPointer();
+        var pOther = other.LoanedPointer();
         return ZenohC.z_keyexpr_intersects(pThis, pOther);
     }
 
     public override string? ToString()
     {
         var viewString = new ViewString();
-        var pLoanedKeyexpr = ZenohC.z_keyexpr_loan(HandleZOwnedKeyexpr);
+        var pLoanedKeyexpr = LoanedPointer();
         ZenohC.z_keyexpr_as_view_string(pLoanedKeyexpr, viewString.Handle);
         var s = viewString.ToString();
         viewString.Dispose();
@@ -628,7 +667,7 @@ public sealed class Sample : Loanable
     internal Sample(Sample other)
     {
         other.CheckDisposed();
-        
+
         var pOwnedSample = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedSample>());
         var pLoanedSample = other.LoanedPointer();
         ZenohC.z_sample_clone(pOwnedSample, pLoanedSample);
@@ -681,7 +720,7 @@ public sealed class Sample : Loanable
     public override void ToOwned()
     {
         if (Owned) return;
-        
+
         var pOwnedSample = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedSample>());
         var pLoanedSample = LoanedPointer();
         ZenohC.z_sample_clone(pOwnedSample, pLoanedSample);
@@ -691,7 +730,7 @@ public sealed class Sample : Loanable
 
     internal override nint LoanedPointer()
     {
-        return Owned? ZenohC.z_sample_loan(Handle) : Handle;
+        return Owned ? ZenohC.z_sample_loan(Handle) : Handle;
     }
 
     /// <summary>
@@ -751,13 +790,16 @@ public sealed class Sample : Loanable
     /// <summary>
     /// Returns the key expression of the sample.
     /// </summary>
+    /// <returns>
+    /// The return Keyexpr is loaned. 
+    /// </returns>
     public Keyexpr GetKeyexpr()
     {
         CheckDisposed();
 
-        var pLoanedSample = Owned ? ZenohC.z_sample_loan(Handle) : Handle;
+        var pLoanedSample = LoanedPointer();
         var pLoanedKeyexpr = ZenohC.z_sample_keyexpr(pLoanedSample);
-        return Keyexpr.CloneFromLoaned(pLoanedKeyexpr);
+        return Keyexpr.CreateLoaned(pLoanedKeyexpr);
     }
 
     /// <summary>
@@ -775,12 +817,14 @@ public sealed class Sample : Loanable
     /// <summary>
     /// Returns the sample payload data.
     /// </summary>
-    /// <returns></returns>
+    /// <returns>
+    /// The return ZBytes is loaned. 
+    /// </returns>
     public ZBytes GetPayload()
     {
         CheckDisposed();
 
-        var pLoanedSample = Owned ? ZenohC.z_sample_loan(Handle) : Handle;
+        var pLoanedSample = LoanedPointer();
         var pLoanedBytes = ZenohC.z_sample_payload(pLoanedSample);
         return ZBytes.CreateLoaned(pLoanedBytes);
     }
@@ -813,17 +857,23 @@ public sealed class Sample : Loanable
     }
 }
 
-public sealed class ReplyErr : IDisposable
+//  z_owned_reply_err_t
+public sealed class ReplyErr : Loanable
 {
-    // 'true' in case z_owned_reply_err_t, 'false' in case z_loaned_reply_err_t 
-    internal bool Owned { get; }
-
-    // z_loaned_reply_err_t*  or  z_owned_reply_err_t*
-    internal nint Handle { get; private set; }
-
     private ReplyErr()
     {
         throw new InvalidOperationException();
+    }
+
+    public ReplyErr(ReplyErr other)
+    {
+        other.CheckDisposed();
+
+        var pOwnedReplyErr = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedReplyErr>());
+        var pLoanedReplyErr = other.LoanedPointer();
+        ZenohC.z_reply_err_clone(pOwnedReplyErr, pLoanedReplyErr);
+        Handle = pOwnedReplyErr;
+        Owned = true;
     }
 
     private ReplyErr(nint handle, bool owned)
@@ -834,23 +884,23 @@ public sealed class ReplyErr : IDisposable
 
     internal static ReplyErr CreateLoaned(nint handle)
     {
-        return new ReplyErr( handle, false);
+        return new ReplyErr(handle, false);
     }
 
     internal static ReplyErr CreateOwned()
     {
         var pOwnedReplyErr = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedReplyErr>());
         ZenohC.z_internal_reply_err_null(pOwnedReplyErr);
-        return new ReplyErr(pOwnedReplyErr,true);
+        return new ReplyErr(pOwnedReplyErr, true);
     }
 
-    public void Dispose()
+    public override void Dispose()
     {
         Dispose(true);
         GC.SuppressFinalize(this);
     }
-    
-    ~ReplyErr()=>Dispose(false);
+
+    ~ReplyErr() => Dispose(false);
 
     private void Dispose(bool disposing)
     {
@@ -861,15 +911,56 @@ public sealed class ReplyErr : IDisposable
             ZenohC.z_reply_err_drop(Handle);
             Marshal.FreeHGlobal(Handle);
         }
-        
+
         Handle = nint.Zero;
     }
+
+    internal override nint LoanedPointer()
+    {
+        return Owned ? ZenohC.z_reply_err_loan(Handle) : Handle;
+    }
+
+    public override void ToOwned()
+    {
+        var pOwnedReplyErr = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedReplyErr>());
+        var pLoanedReplyErr = LoanedPointer();
+        ZenohC.z_reply_err_clone(pOwnedReplyErr, pLoanedReplyErr);
+        Handle = pOwnedReplyErr;
+        Owned = true;
+    }
+
+    /// <summary>
+    /// Returns reply error payload.
+    /// </summary>
+    /// <returns>
+    /// Return ZBytes is loaned.
+    /// </returns>
+    public ZBytes GetPayload()
+    {
+        var pLoanedReplyErr = LoanedPointer();
+        var pLoanedBytes = ZenohC.z_reply_err_payload(pLoanedReplyErr);
+        return ZBytes.CreateLoaned(pLoanedBytes);
+    }
+
+    /// <summary>
+    /// Returns reply error encoding.
+    /// </summary>
+    /// <returns>
+    /// Return Encoding is loaned.
+    /// </returns>
+    public Encoding GetEncoding()
+    {
+        var pLoanedReplyErr = LoanedPointer();
+        var pLoanedEncoding = ZenohC.z_reply_err_encoding(pLoanedReplyErr);
+        return Encoding.CreateLoaned(pLoanedEncoding);
+    }
+
 }
 
 public sealed class Reply : IDisposable
 {
     // z_owned_reply_t*
-    internal nint Handle { get;  private set; }
+    internal nint Handle { get; private set; }
 
     internal Reply()
     {
@@ -881,30 +972,31 @@ public sealed class Reply : IDisposable
     public Reply(Reply other)
     {
         other.CheckDisposed();
-        
+
         var pOwnedReply = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedReply>());
         var pLoanedReply = ZenohC.z_reply_loan(other.Handle);
         ZenohC.z_reply_clone(pOwnedReply, pLoanedReply);
         Handle = pOwnedReply;
     }
     
+
     public void Dispose()
     {
         Dispose(true);
         GC.SuppressFinalize(this);
     }
-    
-    ~Reply()=>Dispose(false);
+
+    ~Reply() => Dispose(false);
 
     private void Dispose(bool disposing)
     {
         if (Handle == nint.Zero) return;
-        
+
         ZenohC.z_reply_drop(Handle);
         Marshal.FreeHGlobal(Handle);
         Handle = nint.Zero;
     }
-    
+
     internal void CheckDisposed()
     {
         if (Handle == nint.Zero)
@@ -919,9 +1011,8 @@ public sealed class Reply : IDisposable
     public bool IsOk()
     {
         CheckDisposed();
-        
+
         var pLoanedReply = ZenohC.z_reply_loan(Handle);
         return ZenohC.z_reply_is_ok(pLoanedReply);
     }
-    
 }

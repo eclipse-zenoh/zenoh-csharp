@@ -275,11 +275,15 @@ public sealed class Encoding : Loanable
     {
         if (Handle == nint.Zero) return;
 
-        ZenohC.z_encoding_drop(Handle);
-        Marshal.FreeHGlobal(Handle);
+        if (Owned)
+        {
+            ZenohC.z_encoding_drop(Handle);
+            Marshal.FreeHGlobal(Handle);
+        }
+
         Handle = nint.Zero;
     }
-    
+
     // 'handle' z_loaned_encoding_t*
     internal static Encoding CreateLoaned(nint handle)
     {
@@ -326,7 +330,7 @@ public sealed class Encoding : Loanable
     {
         CheckDisposed();
 
-        var pZLoanedEncoding = ZenohC.z_encoding_loan(Handle);
+        var pZLoanedEncoding = LoanedPointer();
         var zString = new ZString();
         ZenohC.z_encoding_to_string(pZLoanedEncoding, zString.Handle);
         return zString;
@@ -356,6 +360,8 @@ public sealed class Encoding : Loanable
     {
         CheckDisposed();
 
+        if (!Owned) ToOwned();
+
         var pS = Marshal.StringToHGlobalAnsi(schema);
         var pLoanedEncoding = ZenohC.z_encoding_loan_mut(Handle);
         var r = ZenohC.z_encoding_set_schema_from_str(pLoanedEncoding, pS);
@@ -367,7 +373,7 @@ public sealed class Encoding : Loanable
     {
         CheckDisposed();
 
-        var pLoanedEncoding = ZenohC.z_encoding_loan(Handle);
+        var pLoanedEncoding = LoanedPointer();
         var encodingData = ZenohC.zc_internal_encoding_get_data(pLoanedEncoding);
         return Marshal.PtrToStringAnsi(encodingData.schema_ptr, (int)encodingData.schema_len);
     }
@@ -375,17 +381,16 @@ public sealed class Encoding : Loanable
     public EncodingId GetEncodingId()
     {
         CheckDisposed();
-
+        
         var pLoanedEncoding = ZenohC.z_encoding_loan(Handle);
         var encodingData = ZenohC.zc_internal_encoding_get_data(pLoanedEncoding);
         return (EncodingId)encodingData.id;
     }
 
-
     internal nint AllocUnmanagedMemory()
     {
         var pZOwnedEncoding = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedEncoding>());
-        var pZLoanedEncoding = ZenohC.z_encoding_loan(Handle);
+        var pZLoanedEncoding = LoanedPointer();
         ZenohC.z_encoding_clone(pZOwnedEncoding, pZLoanedEncoding);
         return pZOwnedEncoding;
     }

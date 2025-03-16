@@ -155,12 +155,12 @@ public sealed class Session : IDisposable
     public Result DeclarePublisher(Keyexpr keyexpr, PublisherOptions options, out Publisher? publisher)
     {
         CheckDisposed();
-        
+
         publisher = null;
 
         var pLoanedSession = ZenohC.z_session_loan(HandleZOwnedSession);
         var pOwnedPublisher = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedPublisher>());
-        var pLoanedKeyexpr = ZenohC.z_keyexpr_loan(keyexpr.HandleZOwnedKeyexpr);
+        var pLoanedKeyexpr = keyexpr.LoanedPointer();
         var pPublisherOptions = options.AllocUnmanagedMemory();
 
         Publisher? o;
@@ -209,7 +209,7 @@ public sealed class Session : IDisposable
         );
 
         var pLoanedSession = ZenohC.z_session_loan(HandleZOwnedSession);
-        var pLoanedKeyexpr = ZenohC.z_keyexpr_loan(keyexpr.HandleZOwnedKeyexpr);
+        var pLoanedKeyexpr = keyexpr.LoanedPointer();
         subscriber = new Subscriber();
 
         var r = ZenohC.z_declare_subscriber(
@@ -264,7 +264,7 @@ public sealed class Session : IDisposable
 
         Subscriber subscriber = new Subscriber();
         var pLoanedSession = ZenohC.z_session_loan(HandleZOwnedSession);
-        var pLoanedKeyexpr = ZenohC.z_keyexpr_loan(keyexpr.HandleZOwnedKeyexpr);
+        var pLoanedKeyexpr = keyexpr.LoanedPointer();
 
         var r = ZenohC.z_declare_subscriber(
             pLoanedSession,
@@ -305,14 +305,16 @@ public sealed class Session : IDisposable
     {
         CheckDisposed();
         keyexpr.CheckDisposed();
-        
+        payload.CheckDisposed();
+        payload.ToOwned();
+
         var pLoanedSession = ZenohC.z_session_loan(HandleZOwnedSession);
-        var pLoanedKeyexpr = ZenohC.z_keyexpr_loan(keyexpr.HandleZOwnedKeyexpr);
+        var pLoanedKeyexpr = keyexpr.LoanedPointer();
         var pMovedBytes = payload.Handle;
         var pPutOptions = options.AllocUnmanagedMemory();
-        
+
         var r = ZenohC.z_put(pLoanedSession, pLoanedKeyexpr, pMovedBytes, pPutOptions);
-        
+
         PutOptions.FreeUnmanagedMemory(pPutOptions);
         payload.Dispose();
 
@@ -323,10 +325,51 @@ public sealed class Session : IDisposable
     /// <summary>
     /// Query data from the matching queryable in the system.
     /// </summary>
+    /// <param name="keyexpr">The key expression to subscribe.</param>
+    /// <param name="options"></param>
+    /// <param name="parameters"></param>
+    /// <param name="channelType">The buffer channel type selected.</param>
+    /// <param name="channelSize">The buffer channel capacity.</param>
+    /// <param name="channel"></param>
     /// <returns></returns>
-    public Result Get()
+    public Result Get(Keyexpr keyexpr, GetOptions options, string? parameters, ChannelType channelType,
+        uint channelSize,
+        out ChannelReply? channel)
     {
-        
+        CheckDisposed();
+        keyexpr.CheckDisposed();
+
+        var pOwnedClosureReply = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedClosureReply>());
+        switch (channelType)
+        {
+            case ChannelType.Ring:
+                channel = new ChannelReplyRing();
+                ZenohC.z_ring_channel_reply_new(pOwnedClosureReply, channel.Handle, channelSize);
+                break;
+            case ChannelType.Fifo:
+                channel = new ChannelReplyFifo();
+                ZenohC.z_fifo_channel_reply_new(pOwnedClosureReply, channel.Handle, channelSize);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(channelType), channelType, null);
+        }
+
+        var pLoanedSession = ZenohC.z_session_loan(HandleZOwnedSession);
+        var pLoanedKeyexpr = keyexpr.LoanedPointer();
+        var pParameters = Marshal.StringToHGlobalAnsi(parameters);
+        var pGetOptions = options.AllocUnmanagedMemory();
+
+        var r = ZenohC.z_get(pLoanedSession, pLoanedKeyexpr, pParameters, pOwnedClosureReply, pGetOptions);
+
+        ZenohC.z_closure_reply_drop(pOwnedClosureReply);
+        Marshal.FreeHGlobal(pOwnedClosureReply);
+        Marshal.FreeHGlobal(pParameters);
+        GetOptions.FreeUnmanagedMemory(pGetOptions);
+
+        if (r == Result.Ok) return r;
+
+        channel.Dispose();
+        channel = null;
+        return r;
     }
 }
-

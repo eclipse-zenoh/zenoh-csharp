@@ -470,7 +470,7 @@ public sealed class PublisherPutOptions : IDisposable
 public sealed class Publisher : IDisposable
 {
     // z_owned_publisher_t*
-    internal nint HandleZOwnedPublisher { get; private set; }
+    internal nint Handle { get; private set; }
 
     private Publisher()
     {
@@ -479,7 +479,7 @@ public sealed class Publisher : IDisposable
 
     internal Publisher(nint handle)
     {
-        HandleZOwnedPublisher = handle;
+        Handle = handle;
     }
 
     private Publisher(Publisher other)
@@ -497,16 +497,16 @@ public sealed class Publisher : IDisposable
 
     private void Dispose(bool disposing)
     {
-        if (HandleZOwnedPublisher == nint.Zero) return;
+        if (Handle == nint.Zero) return;
 
-        ZenohC.z_publisher_drop(HandleZOwnedPublisher);
-        Marshal.FreeHGlobal(HandleZOwnedPublisher);
-        HandleZOwnedPublisher = IntPtr.Zero;
+        ZenohC.z_publisher_drop(Handle);
+        Marshal.FreeHGlobal(Handle);
+        Handle = IntPtr.Zero;
     }
 
     internal void CheckDisposed()
     {
-        if (HandleZOwnedPublisher == nint.Zero)
+        if (Handle == nint.Zero)
         {
             throw new InvalidOperationException("Object has been destroyed");
         }
@@ -520,13 +520,19 @@ public sealed class Publisher : IDisposable
         Dispose();
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <returns>
+    /// The return Keyexpr is loaned.
+    /// </returns>
     public Keyexpr GetKeyexpr()
     {
         CheckDisposed();
 
-        var pLoanedPublisher = ZenohC.z_publisher_loan(HandleZOwnedPublisher);
+        var pLoanedPublisher = ZenohC.z_publisher_loan(Handle);
         var pLoanedKeyexpr = ZenohC.z_publisher_keyexpr(pLoanedPublisher);
-        return Keyexpr.CloneFromLoaned(pLoanedKeyexpr);
+        return Keyexpr.CreateLoaned(pLoanedKeyexpr);
     }
 
     /// <summary>
@@ -545,9 +551,10 @@ public sealed class Publisher : IDisposable
     {
         CheckDisposed();
         payload.CheckDisposed();
+        payload.ToOwned();
 
         var pPublisherPutOptions = options.AllocUnmanagedMemory();
-        var pLoanedPublisher = ZenohC.z_publisher_loan(HandleZOwnedPublisher);
+        var pLoanedPublisher = ZenohC.z_publisher_loan(Handle);
 
         var r = ZenohC.z_publisher_put(pLoanedPublisher, payload.Handle, pPublisherPutOptions);
 
