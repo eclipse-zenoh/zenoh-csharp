@@ -133,7 +133,7 @@ public sealed class GetOptions : IDisposable
     {
         _timeoutMs = time;
     }
-    
+
     /// <summary>
     /// The timeout for the query in milliseconds.
     /// 0 means default query timeout from zenoh configuration.
@@ -143,15 +143,21 @@ public sealed class GetOptions : IDisposable
     {
         return _timeoutMs;
     }
-    
+
     public void SetEncoding(Encoding? encoding)
     {
         _encoding = encoding is null ? null : new Encoding(encoding);
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <returns>
+    /// Return Encoding is loaned.
+    /// </returns>
     public Encoding? GetEncoding()
     {
-        return _encoding is null ? null : new Encoding(_encoding);
+        return _encoding is null ? null : Encoding.CreateLoaned(_encoding.LoanedPointer());
     }
 
     public void SetPayload(ZBytes? payload)
@@ -159,28 +165,45 @@ public sealed class GetOptions : IDisposable
         _payload = payload is null ? null : new ZBytes(payload);
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <returns>
+    /// Return ZBytes is loaned.
+    /// </returns>
     public ZBytes? GetPayload()
     {
-        return _payload is null ? null : new ZBytes(_payload);
+        return _payload is null ? null : ZBytes.CreateLoaned(_payload.LoanedPointer());
     }
-    
+
     public void SetAttachment(ZBytes? attachment)
     {
         _attachment = attachment is null ? null : new ZBytes(attachment);
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <returns>
+    /// Return ZBytes is loaned.
+    /// </returns>
     public ZBytes? GetAttachment()
     {
-        return _attachment is null ? null : new ZBytes(_attachment);
+        return _attachment is null ? null : ZBytes.CreateLoaned(_attachment.LoanedPointer());
     }
 
     internal nint AllocUnmanagedMemory()
     {
         var options = new ZGetOptions
         {
-            encoding =nint.Zero,
+            encoding = nint.Zero,
             payload = nint.Zero,
             attachment = nint.Zero,
+            target = _target,
+            consolidation = _consolidation,
+            congestion_control = _congestionControl,
+            priority = _priority,
+            timeout_ms = _timeoutMs,
         };
 
         if (_encoding is not null)
@@ -197,16 +220,10 @@ public sealed class GetOptions : IDisposable
         {
             options.attachment = _attachment.AllocUnmanagedMemory();
         }
-        
-        options.target = _target;
-        options.consolidation = _consolidation;
-        options.congestion_control = _congestionControl;
-        options.priority = _priority;
-        options.timeout_ms = _timeoutMs;
-        
+
         var pOptions = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(ZGetOptions)));
         Marshal.StructureToPtr(options, pOptions, false);
-        
+
         return pOptions;
     }
 
@@ -228,9 +245,167 @@ public sealed class GetOptions : IDisposable
         {
             ZBytes.FreeUnmanagedMem(options.attachment);
         }
-        
+
         Marshal.FreeHGlobal(handle);
     }
-    
 }
 
+//  z_owned_reply_err_t
+public sealed class ReplyErr : Loanable
+{
+    private ReplyErr()
+    {
+        throw new InvalidOperationException();
+    }
+
+    public ReplyErr(ReplyErr other)
+    {
+        other.CheckDisposed();
+
+        var pOwnedReplyErr = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedReplyErr>());
+        var pLoanedReplyErr = other.LoanedPointer();
+        ZenohC.z_reply_err_clone(pOwnedReplyErr, pLoanedReplyErr);
+        Handle = pOwnedReplyErr;
+        Owned = true;
+    }
+
+    private ReplyErr(nint handle, bool owned)
+    {
+        Owned = owned;
+        Handle = handle;
+    }
+
+    internal static ReplyErr CreateLoaned(nint handle)
+    {
+        return new ReplyErr(handle, false);
+    }
+
+    internal static ReplyErr CreateOwned()
+    {
+        var pOwnedReplyErr = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedReplyErr>());
+        ZenohC.z_internal_reply_err_null(pOwnedReplyErr);
+        return new ReplyErr(pOwnedReplyErr, true);
+    }
+
+    public override void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    ~ReplyErr() => Dispose(false);
+
+    private void Dispose(bool disposing)
+    {
+        if (Handle == nint.Zero) return;
+
+        if (Owned)
+        {
+            ZenohC.z_reply_err_drop(Handle);
+            Marshal.FreeHGlobal(Handle);
+        }
+
+        Handle = nint.Zero;
+    }
+
+    internal override nint LoanedPointer()
+    {
+        return Owned ? ZenohC.z_reply_err_loan(Handle) : Handle;
+    }
+
+    public override void ToOwned()
+    {
+        var pOwnedReplyErr = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedReplyErr>());
+        var pLoanedReplyErr = LoanedPointer();
+        ZenohC.z_reply_err_clone(pOwnedReplyErr, pLoanedReplyErr);
+        Handle = pOwnedReplyErr;
+        Owned = true;
+    }
+
+    /// <summary>
+    /// Returns reply error payload.
+    /// </summary>
+    /// <returns>
+    /// Return ZBytes is loaned.
+    /// </returns>
+    public ZBytes GetPayload()
+    {
+        var pLoanedReplyErr = LoanedPointer();
+        var pLoanedBytes = ZenohC.z_reply_err_payload(pLoanedReplyErr);
+        return ZBytes.CreateLoaned(pLoanedBytes);
+    }
+
+    /// <summary>
+    /// Returns reply error encoding.
+    /// </summary>
+    /// <returns>
+    /// Return Encoding is loaned.
+    /// </returns>
+    public Encoding GetEncoding()
+    {
+        var pLoanedReplyErr = LoanedPointer();
+        var pLoanedEncoding = ZenohC.z_reply_err_encoding(pLoanedReplyErr);
+        return Encoding.CreateLoaned(pLoanedEncoding);
+    }
+}
+
+// z_owned_reply_t
+public sealed class Reply : IDisposable
+{
+    // z_owned_reply_t*
+    internal nint Handle { get; private set; }
+
+    internal Reply()
+    {
+        var pOwnedReply = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedReply>());
+        ZenohC.z_internal_reply_null(pOwnedReply);
+        Handle = pOwnedReply;
+    }
+
+    public Reply(Reply other)
+    {
+        other.CheckDisposed();
+
+        var pOwnedReply = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedReply>());
+        var pLoanedReply = ZenohC.z_reply_loan(other.Handle);
+        ZenohC.z_reply_clone(pOwnedReply, pLoanedReply);
+        Handle = pOwnedReply;
+    }
+
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    ~Reply() => Dispose(false);
+
+    private void Dispose(bool disposing)
+    {
+        if (Handle == nint.Zero) return;
+
+        ZenohC.z_reply_drop(Handle);
+        Marshal.FreeHGlobal(Handle);
+        Handle = nint.Zero;
+    }
+
+    internal void CheckDisposed()
+    {
+        if (Handle == nint.Zero)
+        {
+            throw new InvalidOperationException("Object is disposed");
+        }
+    }
+
+    /// <summary>
+    /// Returns 'true' if reply contains a valid response, 'false' otherwise.
+    /// </summary>
+    public bool IsOk()
+    {
+        CheckDisposed();
+
+        var pLoanedReply = ZenohC.z_reply_loan(Handle);
+        return ZenohC.z_reply_is_ok(pLoanedReply);
+    }
+}

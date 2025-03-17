@@ -6,7 +6,7 @@ namespace Zenoh;
 public sealed class Config : IDisposable
 {
     // z_owned_config*
-    internal nint HandleZOwnedConfig { get; private set; }
+    internal nint Handle { get; private set; }
 
     private Config()
     {
@@ -15,7 +15,7 @@ public sealed class Config : IDisposable
 
     private Config(nint config)
     {
-        HandleZOwnedConfig = config;
+        Handle = config;
     }
 
     public Config(Config other)
@@ -25,9 +25,9 @@ public sealed class Config : IDisposable
         var pOwnedConfig = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedConfig>());
         ZenohC.z_internal_config_null(pOwnedConfig);
 
-        var pLoanedConfig = ZenohC.z_config_loan(other.HandleZOwnedConfig);
+        var pLoanedConfig = ZenohC.z_config_loan(other.Handle);
         ZenohC.z_config_clone(pOwnedConfig, pLoanedConfig);
-        HandleZOwnedConfig = pOwnedConfig;
+        Handle = pOwnedConfig;
     }
 
     public static Config? Default()
@@ -88,16 +88,16 @@ public sealed class Config : IDisposable
 
     private void Dispose(bool disposing)
     {
-        if (HandleZOwnedConfig == nint.Zero) return;
+        if (Handle == nint.Zero) return;
 
-        ZenohC.z_config_drop(HandleZOwnedConfig);
-        Marshal.FreeHGlobal(HandleZOwnedConfig);
-        HandleZOwnedConfig = nint.Zero;
+        ZenohC.z_config_drop(Handle);
+        Marshal.FreeHGlobal(Handle);
+        Handle = nint.Zero;
     }
 
     public void CheckDisposed()
     {
-        if (HandleZOwnedConfig == nint.Zero)
+        if (Handle == nint.Zero)
         {
             throw new InvalidOperationException();
         }
@@ -108,7 +108,7 @@ public sealed class Config : IDisposable
         CheckDisposed();
         
         var zString = new ZString();
-        var pLoanedConfig = ZenohC.z_config_loan(HandleZOwnedConfig);
+        var pLoanedConfig = ZenohC.z_config_loan(Handle);
         var r = ZenohC.zc_config_to_string(pLoanedConfig, zString.Handle);
         return r == Result.Ok ? zString : null;
     }

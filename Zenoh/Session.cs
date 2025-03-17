@@ -3,47 +3,46 @@ using System.Runtime.InteropServices;
 
 namespace Zenoh;
 
-public sealed class OpenOptions : IDisposable
+public sealed class OpenOptions
 {
-    // z_open_options*
-    internal nint HandleZOpenOptions { get; private set; }
+    public byte Dummy { get; set; }
 
     public OpenOptions()
     {
         var pOpenOptions = Marshal.AllocHGlobal(Marshal.SizeOf<ZOpenOptions>());
         ZenohC.z_open_options_default(pOpenOptions);
-        HandleZOpenOptions = pOpenOptions;
+        var options = Marshal.PtrToStructure<ZOpenOptions>(pOpenOptions);
+        Marshal.FreeHGlobal(pOpenOptions);
+        Dummy = options.dummy;
     }
 
     public OpenOptions(OpenOptions other)
     {
-        var pTarget = Marshal.AllocHGlobal(Marshal.SizeOf<ZOpenOptions>());
-        var openOptions = Marshal.PtrToStructure<ZOpenOptions>(other.HandleZOpenOptions);
-        Marshal.StructureToPtr(openOptions, pTarget, false);
-        HandleZOpenOptions = pTarget;
+        Dummy = other.Dummy;
     }
 
-    public void Dispose()
+    internal nint AllocUnmanagedMem()
     {
-        Dispose(true);
-        GC.SuppressFinalize(this);
+        var options = new ZOpenOptions
+        {
+            dummy = Dummy,
+        };
+
+        var pOpenOptions = Marshal.AllocHGlobal(Marshal.SizeOf<ZOpenOptions>());
+        Marshal.StructureToPtr(options, pOpenOptions, false);
+        return pOpenOptions;
     }
 
-    ~OpenOptions() => Dispose(false);
-
-    private void Dispose(bool disposing)
+    internal static void FreeUnmanagedMem(nint handle)
     {
-        if (HandleZOpenOptions == nint.Zero) return;
-
-        Marshal.FreeHGlobal(HandleZOpenOptions);
-        HandleZOpenOptions = nint.Zero;
+        Marshal.FreeHGlobal(handle);
     }
 }
 
 public sealed class Session : IDisposable
 {
     // z_owned_session*
-    internal nint HandleZOwnedSession { get; private set; }
+    internal nint Handle { get; private set; }
 
     private Session()
     {
@@ -57,7 +56,7 @@ public sealed class Session : IDisposable
 
     private Session(nint handle)
     {
-        HandleZOwnedSession = handle;
+        Handle = handle;
     }
 
     public void Dispose()
@@ -70,17 +69,17 @@ public sealed class Session : IDisposable
 
     private void Dispose(bool disposing)
     {
-        if (HandleZOwnedSession == nint.Zero) return;
+        if (Handle == nint.Zero) return;
 
-        ZenohC.z_session_drop(HandleZOwnedSession);
+        ZenohC.z_session_drop(Handle);
 
-        Marshal.FreeHGlobal(HandleZOwnedSession);
-        HandleZOwnedSession = nint.Zero;
+        Marshal.FreeHGlobal(Handle);
+        Handle = nint.Zero;
     }
 
     internal void CheckDisposed()
     {
-        if (HandleZOwnedSession == nint.Zero)
+        if (Handle == nint.Zero)
         {
             throw new ObjectDisposedException("Object has been destroyed");
         }
@@ -109,8 +108,9 @@ public sealed class Session : IDisposable
         var pOwnedSession = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedSession>());
         ZenohC.z_internal_session_null(pOwnedSession);
         var configCopy = new Config(config);
+        var pOpenOptions = openOptions.AllocUnmanagedMem();
 
-        var r = ZenohC.z_open(pOwnedSession, configCopy.HandleZOwnedConfig, openOptions.HandleZOpenOptions);
+        var r = ZenohC.z_open(pOwnedSession, configCopy.Handle, pOpenOptions);
         configCopy.Dispose();
 
         if (r == Result.Ok)
@@ -141,7 +141,7 @@ public sealed class Session : IDisposable
     {
         CheckDisposed();
 
-        var pLoanedSession = ZenohC.z_session_loan(HandleZOwnedSession);
+        var pLoanedSession = ZenohC.z_session_loan(Handle);
         return Timestamp.NewFromSession(pLoanedSession);
     }
 
@@ -158,7 +158,7 @@ public sealed class Session : IDisposable
 
         publisher = null;
 
-        var pLoanedSession = ZenohC.z_session_loan(HandleZOwnedSession);
+        var pLoanedSession = ZenohC.z_session_loan(Handle);
         var pOwnedPublisher = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedPublisher>());
         var pLoanedKeyexpr = keyexpr.LoanedPointer();
         var pPublisherOptions = options.AllocUnmanagedMemory();
@@ -208,7 +208,7 @@ public sealed class Session : IDisposable
             GCHandle.ToIntPtr(gcHandle)
         );
 
-        var pLoanedSession = ZenohC.z_session_loan(HandleZOwnedSession);
+        var pLoanedSession = ZenohC.z_session_loan(Handle);
         var pLoanedKeyexpr = keyexpr.LoanedPointer();
         subscriber = new Subscriber();
 
@@ -263,7 +263,7 @@ public sealed class Session : IDisposable
         }
 
         Subscriber subscriber = new Subscriber();
-        var pLoanedSession = ZenohC.z_session_loan(HandleZOwnedSession);
+        var pLoanedSession = ZenohC.z_session_loan(Handle);
         var pLoanedKeyexpr = keyexpr.LoanedPointer();
 
         var r = ZenohC.z_declare_subscriber(
@@ -288,6 +288,24 @@ public sealed class Session : IDisposable
         return r;
     }
 
+
+    /// <summary>
+    /// Constructs a Queryable for the given key expression.
+    /// </summary>
+    /// <param name="keyexpr"></param>
+    /// <param name="options"></param>
+    /// <param name="callback"></param>
+    /// <param name="queryable"></param>
+    /// <returns></returns>
+    public Result DeclareQueryable(Keyexpr keyexpr, QueryableOptions options, Queryable.Cb callback,
+        out Queryable? queryable)
+    {
+        CheckDisposed();
+        keyexpr.CheckDisposed();
+
+        // todo
+    }
+
     /// <summary>
     /// <para>
     /// Publishes data on specified key expression.
@@ -308,7 +326,7 @@ public sealed class Session : IDisposable
         payload.CheckDisposed();
         payload.ToOwned();
 
-        var pLoanedSession = ZenohC.z_session_loan(HandleZOwnedSession);
+        var pLoanedSession = ZenohC.z_session_loan(Handle);
         var pLoanedKeyexpr = keyexpr.LoanedPointer();
         var pMovedBytes = payload.Handle;
         var pPutOptions = options.AllocUnmanagedMemory();
@@ -354,7 +372,7 @@ public sealed class Session : IDisposable
                 throw new ArgumentOutOfRangeException(nameof(channelType), channelType, null);
         }
 
-        var pLoanedSession = ZenohC.z_session_loan(HandleZOwnedSession);
+        var pLoanedSession = ZenohC.z_session_loan(Handle);
         var pLoanedKeyexpr = keyexpr.LoanedPointer();
         var pParameters = Marshal.StringToHGlobalAnsi(parameters);
         var pGetOptions = options.AllocUnmanagedMemory();

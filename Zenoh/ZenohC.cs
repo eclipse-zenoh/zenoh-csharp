@@ -363,17 +363,18 @@ internal struct ZMovedQuery
 }
 
 // zenoh_commons.h
-// z_owned_closure_query_t
+// typedef struct z_owned_closure_query_t {
+//     void *_context;
+//     void (*_call)(struct z_loaned_query_t *query, void *context);
+//     void (*_drop)(void *context);
+// } z_owned_closure_query_t;
 [StructLayout(LayoutKind.Sequential)]
-internal unsafe struct ZOwnedClosureQuery
+internal struct ZOwnedClosureQuery
 {
-    internal void* context;
-    internal delegate* unmanaged[Cdecl]<ZLoanedQuery*, void*, void> call;
-    internal delegate* unmanaged[Cdecl]<void*, void> drop;
+    internal nint context;
+    internal nint call;
+    internal nint drop;
 }
-
-// internal unsafe delegate void ZOwnedClosureQueryCall(ZLoanedQuery* query, void* context);
-// internal unsafe delegate void ZOwnedClosureQueryDrop(void* context);
 
 // zenoh_opaque.h
 // z_loaned_closure_query_t
@@ -1139,7 +1140,8 @@ internal struct ZPublisherPutOptions
 [StructLayout(LayoutKind.Sequential)]
 internal struct ZQueryableOptions
 {
-    internal byte complete;
+    [MarshalAs(UnmanagedType.U1)]
+    internal bool complete;
 }
 
 // zenoh_commons.h
@@ -1245,14 +1247,23 @@ internal struct ZPutOptions
 // zenoh_commons.h
 // z_query_reply_options_t 
 [StructLayout(LayoutKind.Sequential)]
-internal unsafe struct ZQueryReplyOptions
+internal struct ZQueryReplyOptions
 {
-    internal ZMovedEncoding* encoding;
-    internal CongestionControl CongestionControl;
-    internal Priority Priority;
-    [MarshalAs(UnmanagedType.U1)] internal bool is_express;
-    internal ZTimestamp* timestamp;
-    internal ZMovedBytes* attachment;
+    // z_moved_encoding_t*
+    internal nint encoding;
+    
+    internal CongestionControl congestion_control;
+    
+    internal Priority priority;
+    
+    [MarshalAs(UnmanagedType.U1)]
+    internal bool is_express;
+    
+    // z_timestamp_t*
+    internal nint timestamp;
+    
+    // z_moved_bytes_t*
+    internal nint attachment;
 }
 
 // zenoh_commons.h
@@ -1597,43 +1608,69 @@ internal static unsafe class ZenohC
         ExactSpelling = true)]
     internal static extern ZLoanedClosureHello* z_closure_hello_loan_mut(ZOwnedClosureHello* closure);
 
+    /// void
+    /// z_closure_query(
+    ///     struct z_owned_closure_query_t *this_,
+    ///     void (*call)(struct z_loaned_query_t *query, void *context),
+    ///     void (*drop)(void *context),
+    ///     void *context
+    /// )
     [DllImport(DllName, EntryPoint = "z_closure_query", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern void z_closure_query(
-        ZOwnedClosureQuery* closure,
-        delegate*<ZLoanedQuery*, void*, void> call,
-        delegate*<void*, void> drop,
-        void* context
-    );
+    internal static extern void z_closure_query(nint closure, nint call, nint drop, nint context);
 
+    /// void
+    /// z_closure_query_call(
+    ///     const struct z_loaned_closure_query_t *closure,
+    ///     struct z_loaned_query_t *query
+    /// )
     [DllImport(DllName, EntryPoint = "z_closure_query_call", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern void z_closure_query_call(ZLoanedClosureQuery* closure, ZLoanedQuery* query);
+    internal static extern void z_closure_query_call(nint closure, nint query);
 
+    /// void
+    /// z_closure_query_drop(
+    ///     struct z_moved_closure_query_t *closure_
+    /// )
     [DllImport(DllName, EntryPoint = "z_closure_query_drop", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern void z_closure_query_drop(ZMovedClosureQuery* closure);
+    internal static extern void z_closure_query_drop(nint closure);
 
+    /// const struct z_loaned_closure_query_t*
+    /// z_closure_query_loan(
+    ///     const struct z_owned_closure_query_t *closure
+    /// )
     [DllImport(DllName, EntryPoint = "z_closure_query_loan", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern ZLoanedClosureQuery* z_closure_query_loan(ZOwnedClosureQuery* closure);
+    internal static extern nint z_closure_query_loan(nint closure);
 
+    /// struct z_loaned_closure_query_t*
+    /// z_closure_query_loan_mut(
+    ///     struct z_owned_closure_query_t *closure
+    /// )
     [DllImport(DllName, EntryPoint = "z_closure_query_loan_mut", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern ZLoanedClosureQuery* z_closure_query_loan_mut(ZOwnedClosureQuery* closure);
+    internal static extern nint z_closure_query_loan_mut(nint closure);
 
+    /// void
+    /// z_closure_reply(
+    ///     struct z_owned_closure_reply_t *this_,
+    ///     void (*call)(struct z_loaned_reply_t *reply, void *context),
+    ///     void (*drop)(void *context),
+    ///     void *context
+    /// )
     [DllImport(DllName, EntryPoint = "z_closure_reply", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern void z_closure_reply(
-        ZOwnedClosureReply* closure,
-        delegate*<ZLoanedReply*, void*, void> call,
-        delegate*<void*, void> drop,
-        void* context
-    );
+    internal static extern void z_closure_reply( nint closure, nint call, nint drop, nint context);
 
+    /// void
+    /// z_closure_reply_call(
+    ///     const struct z_loaned_closure_reply_t *closure,
+    ///     struct z_loaned_reply_t *reply
+    /// )
     [DllImport(DllName, EntryPoint = "z_closure_reply_call", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern void z_closure_reply_call(ZLoanedClosureReply* closure, ZLoanedReply* reply);
+    internal static extern void z_closure_reply_call(nint closure, nint reply);
 
     /// void
     /// z_closure_reply_drop(
@@ -1643,13 +1680,21 @@ internal static unsafe class ZenohC
         ExactSpelling = true)]
     internal static extern void z_closure_reply_drop(nint closure);
 
+    /// const struct z_loaned_closure_reply_t*
+    /// z_closure_reply_loan(
+    ///     const struct z_owned_closure_reply_t *closure
+    /// )
     [DllImport(DllName, EntryPoint = "z_closure_reply_loan", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern ZLoanedClosureReply* z_closure_reply_loan(ZOwnedClosureReply* closure);
+    internal static extern nint z_closure_reply_loan(nint closure);
 
+    /// struct z_loaned_closure_reply_t*
+    /// z_closure_reply_loan_mut(
+    ///     struct z_owned_closure_reply_t *closure
+    /// )
     [DllImport(DllName, EntryPoint = "z_closure_reply_loan_mut", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern ZLoanedClosureReply* z_closure_reply_loan_mut(ZOwnedClosureReply* closure);
+    internal static extern nint z_closure_reply_loan_mut(nint closure);
 
     /// void
     /// (*call) (
@@ -2772,23 +2817,39 @@ internal static unsafe class ZenohC
         ExactSpelling = true)]
     internal static extern void z_internal_publisher_null(nint publisher);
 
+    /// bool
+    /// z_internal_query_check(
+    ///     const struct z_owned_query_t *query
+    /// )
     [DllImport(DllName, EntryPoint = "z_internal_query_check", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
     [return: MarshalAs(UnmanagedType.U1)]
-    internal static extern bool z_internal_query_check(ZOwnedQuery* query);
+    internal static extern bool z_internal_query_check(nint query);
 
+    /// void
+    /// z_internal_query_null(
+    ///     struct z_owned_query_t *this_
+    /// )
     [DllImport(DllName, EntryPoint = "z_internal_query_null", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern void z_internal_query_null(ZOwnedQuery* query);
+    internal static extern void z_internal_query_null(nint query);
 
+    /// bool
+    /// z_internal_queryable_check(
+    ///     const struct z_owned_queryable_t *this_
+    /// )
     [DllImport(DllName, EntryPoint = "z_internal_queryable_check", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
     [return: MarshalAs(UnmanagedType.U1)]
-    internal static extern bool z_internal_queryable_check(ZOwnedQueryable* queryable);
+    internal static extern bool z_internal_queryable_check(nint queryable);
 
+    /// void
+    /// z_internal_queryable_null(
+    ///     struct z_owned_queryable_t *this_
+    /// )
     [DllImport(DllName, EntryPoint = "z_internal_queryable_null", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern void z_internal_queryable_null(ZOwnedQueryable* queryable);
+    internal static extern void z_internal_queryable_null(nint queryable);
 
     /// bool
     /// z_internal_reply_check(
@@ -3297,100 +3358,222 @@ internal static unsafe class ZenohC
         ExactSpelling = true)]
     internal static extern void z_put_options_default(nint options);
 
+    /// const struct z_loaned_bytes_t*
+    /// z_query_attachment(
+    ///     const struct z_loaned_query_t *this_
+    /// )
     [DllImport(DllName, EntryPoint = "z_query_attachment", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern ZLoanedBytes* z_query_attachment(ZLoanedQuery* query);
+    internal static extern nint z_query_attachment(nint query);
+    
+    /// struct z_loaned_bytes_t*
+    /// z_query_attachment_mut(
+    ///     struct z_loaned_query_t *this_
+    /// )
+    [DllImport(DllName, EntryPoint = "z_query_attachment_mut", CallingConvention = CallingConvention.Cdecl,
+        ExactSpelling = true)]
+    internal static extern nint z_query_attachment_mut(nint query);
 
+    /// void
+    /// z_query_clone(
+    ///     struct z_owned_query_t *dst,
+    ///     const struct z_loaned_query_t *this_
+    /// )
     [DllImport(DllName, EntryPoint = "z_query_clone", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern void z_query_clone(ZOwnedQuery* dst, ZLoanedQuery* src);
+    internal static extern void z_query_clone(nint dst, nint src);
 
+    /// struct z_query_consolidation_t
+    /// z_query_consolidation_auto(
+    ///     void
+    /// )
     [DllImport(DllName, EntryPoint = "z_query_consolidation_auto", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
     internal static extern ZQueryConsolidation z_query_consolidation_auto();
 
+    /// struct z_query_consolidation_t
+    /// z_query_consolidation_default(
+    ///     void
+    /// )
     [DllImport(DllName, EntryPoint = "z_query_consolidation_default", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
     internal static extern ZQueryConsolidation z_query_consolidation_default();
 
+    /// struct z_query_consolidation_t
+    /// z_query_consolidation_latest(
+    ///     void
+    /// )
     [DllImport(DllName, EntryPoint = "z_query_consolidation_latest", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
     internal static extern ZQueryConsolidation z_query_consolidation_latest();
 
+    /// struct z_query_consolidation_t
+    /// z_query_consolidation_monotonic(
+    ///     void
+    /// )
     [DllImport(DllName, EntryPoint = "z_query_consolidation_monotonic", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
     internal static extern ZQueryConsolidation z_query_consolidation_monotonic();
 
+    /// struct z_query_consolidation_t
+    /// z_query_consolidation_none(
+    ///     void
+    /// )
     [DllImport(DllName, EntryPoint = "z_query_consolidation_none", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
     internal static extern ZQueryConsolidation z_query_consolidation_none();
 
+    /// void
+    /// z_query_drop(
+    ///     struct z_moved_query_t *this_
+    /// )
     [DllImport(DllName, EntryPoint = "z_query_drop", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern void z_query_drop(ZMovedQuery* query);
+    internal static extern void z_query_drop(nint query);
 
+    /// const struct z_loaned_encoding_t*
+    /// z_query_encoding(
+    ///     const struct z_loaned_query_t *this_
+    /// )
     [DllImport(DllName, EntryPoint = "z_query_encoding", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern ZLoanedEncoding* z_query_encoding(ZLoanedQuery* query);
+    internal static extern nint z_query_encoding(nint query);
 
+    /// const struct z_loaned_keyexpr_t*
+    /// z_query_keyexpr(
+    ///     const struct z_loaned_query_t *this_
+    /// )
     [DllImport(DllName, EntryPoint = "z_query_keyexpr", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern ZLoanedKeyexpr* z_query_keyexpr(ZLoanedQuery* query);
+    internal static extern nint z_query_keyexpr(nint query);
 
+    /// const struct z_loaned_query_t*
+    /// z_query_loan(
+    ///     const struct z_owned_query_t *this_
+    /// )
     [DllImport(DllName, EntryPoint = "z_query_loan", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern ZLoanedQuery* z_query_loan(ZLoanedQuery* query);
+    internal static extern nint z_query_loan(nint query);
+    
+    /// struct z_loaned_query_t*
+    /// z_query_loan_mut(
+    ///     struct z_owned_query_t *this_
+    /// )
+    [DllImport(DllName, EntryPoint = "z_query_loan_mut", CallingConvention = CallingConvention.Cdecl,
+        ExactSpelling = true)]
+    internal static extern nint z_query_loan_mut(nint query);
 
+    /// void
+    /// z_query_parameters(
+    ///     const struct z_loaned_query_t *this_,
+    ///     struct z_view_string_t *parameters
+    /// )
     [DllImport(DllName, EntryPoint = "z_query_parameters", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern void z_query_parameters(ZLoanedQuery* query, ZViewString* parameters);
+    internal static extern void z_query_parameters(nint query, nint parameters);
 
+    /// const struct z_loaned_bytes_t*
+    /// z_query_payload(
+    ///     const struct z_loaned_query_t *this_
+    /// )
     [DllImport(DllName, EntryPoint = "z_query_payload", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern ZLoanedBytes* z_query_payload(ZLoanedQuery* query);
+    internal static extern nint z_query_payload(nint query);
+    
+    /// struct z_loaned_bytes_t*
+    /// z_query_payload_mut(
+    ///     struct z_loaned_query_t *this_
+    /// )
+    [DllImport(DllName, EntryPoint = "z_query_payload_mut", CallingConvention = CallingConvention.Cdecl,
+        ExactSpelling = true)]
+    internal static extern nint z_query_payload_mut(nint query);
 
+    /// z_result_t
+    /// z_query_reply(
+    ///     const struct z_loaned_query_t *this_,
+    ///     const struct z_loaned_keyexpr_t *key_expr,
+    ///     struct z_moved_bytes_t *payload,
+    ///     struct z_query_reply_options_t *options
+    /// )
     [DllImport(DllName, EntryPoint = "z_query_reply", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern Result z_query_reply(
-        ZLoanedQuery* query,
-        ZLoanedKeyexpr* keyexpr,
-        ZMovedBytes* payload,
-        ZQueryReplyOptions* options
-    );
+    internal static extern Result z_query_reply( nint query, nint keyexpr, nint payload, nint options );
 
+    /// z_result_t
+    /// z_query_reply_del(
+    ///     const struct z_loaned_query_t *this_,
+    ///     const struct z_loaned_keyexpr_t *key_expr,
+    ///     struct z_query_reply_del_options_t *options
+    /// )
     [DllImport(DllName, EntryPoint = "z_query_reply_del", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern Result z_query_reply_del(ZLoanedQuery* query, ZLoanedKeyexpr* keyexpr,
-        ZQueryReplyDelOptions* options);
+    internal static extern Result z_query_reply_del(nint query, nint keyexpr, nint options);
 
+    /// void
+    /// z_query_reply_del_options_default(
+    ///     struct z_query_reply_del_options_t *this_
+    /// )
     [DllImport(DllName, EntryPoint = "z_query_reply_del_options_default", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern void z_query_reply_del_options_default(ZQueryReplyDelOptions* options);
+    internal static extern void z_query_reply_del_options_default(nint options);
 
+    /// z_result_t
+    /// z_query_reply_err(
+    ///     const struct z_loaned_query_t *this_,
+    ///     struct z_moved_bytes_t *payload,
+    ///     struct z_query_reply_err_options_t *options
+    /// )
     [DllImport(DllName, EntryPoint = "z_query_reply_err", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern Result z_query_reply_err(ZLoanedQuery* query, ZMovedBytes* payload,
-        ZQueryReplyErrOptions* options);
+    internal static extern Result z_query_reply_err(nint query, nint payload, nint options);
 
+    /// void
+    /// z_query_reply_err_options_default(
+    ///     struct z_query_reply_err_options_t *this_
+    /// )
+    [DllImport(DllName, EntryPoint = "z_query_reply_err_options_default", CallingConvention = CallingConvention.Cdecl,
+        ExactSpelling = true)]
+    internal static extern void z_query_reply_err_options_default(nint options);
+    
+    /// void
+    /// z_query_reply_options_default(
+    ///     struct z_query_reply_options_t *this_
+    /// )
     [DllImport(DllName, EntryPoint = "z_query_reply_options_default", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern void z_query_reply_options_default(ZQueryReplyOptions* options);
+    internal static extern void z_query_reply_options_default(nint options);
 
+    /// enum z_query_target_t
+    /// z_query_target_default(
+    ///     void
+    /// )
     [DllImport(DllName, EntryPoint = "z_query_target_default", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
     internal static extern QueryTarget z_query_target_default();
 
+    /// void
+    /// z_queryable_drop(
+    ///     struct z_moved_queryable_t *this_
+    /// )
     [DllImport(DllName, EntryPoint = "z_queryable_drop", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern void z_queryable_drop(ZMovedQueryable* queryable);
+    internal static extern void z_queryable_drop(nint queryable);
 
+    /// const struct z_loaned_queryable_t*
+    /// z_queryable_loan(
+    ///     const struct z_owned_queryable_t *this_
+    /// )
     [DllImport(DllName, EntryPoint = "z_queryable_loan", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern ZLoanedQueryable* z_queryable_loan(ZOwnedQueryable* queryable);
+    internal static extern nint z_queryable_loan(nint queryable);
 
+    /// void
+    /// z_queryable_options_default(
+    ///     struct z_queryable_options_t *this_
+    /// )
     [DllImport(DllName, EntryPoint = "z_queryable_options_default", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern void z_queryable_options_default(ZQueryableOptions* options);
+    internal static extern void z_queryable_options_default(nint options);
 
     [DllImport(DllName, EntryPoint = "z_random_fill", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
@@ -4104,9 +4287,13 @@ internal static unsafe class ZenohC
         ExactSpelling = true)]
     internal static extern Result z_undeclare_publisher(nint publisher);
 
+    /// z_result_t
+    /// z_undeclare_queryable(
+    ///     struct z_moved_queryable_t *this_
+    /// )
     [DllImport(DllName, EntryPoint = "z_undeclare_queryable", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern Result z_undeclare_queryable(ZMovedQueryable* queryable);
+    internal static extern Result z_undeclare_queryable(nint queryable);
 
     /// z_result_t
     /// z_undeclare_subscriber(
