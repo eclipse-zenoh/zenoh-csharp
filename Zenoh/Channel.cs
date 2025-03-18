@@ -76,16 +76,20 @@ public abstract class ChannelSample : Channel
     public abstract Result TryRecv(out Sample? sample);
 }
 
+// z_owned_ring_handler_sample_t
 public sealed class ChannelSampleRing : ChannelSample
 {
-    // z_owned_ring_handler_sample_t
-
     internal ChannelSampleRing()
     {
         ChannelType = ChannelType.Ring;
         var pChannel = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedRingHandlerSample>());
         ZenohC.z_internal_ring_handler_sample_null(pChannel);
         Handle = pChannel;
+    }
+
+    private ChannelSampleRing(ChannelSampleRing other)
+    {
+        throw new InvalidOperationException();
     }
 
     public override void Dispose()
@@ -138,16 +142,20 @@ public sealed class ChannelSampleRing : ChannelSample
     }
 }
 
+// z_owned_fifo_handler_sample_t
 public sealed class ChannelSampleFifo : ChannelSample
 {
-    // z_owned_fifo_handler_sample_t
-
     internal ChannelSampleFifo()
     {
         ChannelType = ChannelType.Fifo;
         var pChannel = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedFifoHandlerSample>());
         ZenohC.z_internal_fifo_handler_sample_null(pChannel);
         Handle = pChannel;
+    }
+
+    private ChannelSampleFifo(ChannelSampleFifo other)
+    {
+        throw new InvalidOperationException();
     }
 
     public override void Dispose()
@@ -246,6 +254,11 @@ public sealed class ChannelReplyRing : ChannelReply
         Handle = pOwnedRingHandlerReply;
     }
 
+    private ChannelReplyRing(ChannelQueryRing other)
+    {
+        throw new InvalidOperationException();
+    }
+
     public override void Dispose()
     {
         Dispose(true);
@@ -305,6 +318,11 @@ public sealed class ChannelReplyFifo : ChannelReply
         Handle = pOwnedFifoHandlerReply;
     }
 
+    private ChannelReplyFifo(ChannelQueryFifo other)
+    {
+        throw new InvalidOperationException();
+    }
+
     public override void Dispose()
     {
         Dispose(true);
@@ -349,6 +367,166 @@ public sealed class ChannelReplyFifo : ChannelReply
 
         reply.Dispose();
         reply = null;
+        return r;
+    }
+}
+
+public abstract class ChannelQuery : Channel
+{
+    /// <summary>
+    /// <para>
+    /// Returns query from the buffer channel.
+    /// </para>
+    /// <para>
+    /// If there are no more pending replies will block until next sample is received,
+    /// or until the channel is dropped (normally when there are no more replies to receive).
+    /// </para>
+    /// </summary>
+    /// <param name="query"></param>
+    /// <returns>
+    /// <para>"Result.Ok" in case of success.</para>
+    /// <para>"Result.ChannelDisconnected" if channel was dropped (the reply will be set to "null").</para>
+    /// </returns>
+    public abstract Result Recv(out Query? query);
+
+    /// <summary>
+    /// <para>
+    /// Returns query from the buffer channel.
+    /// </para>
+    /// <para>
+    /// If there are no more pending replies will return immediately (with reply set to null).
+    /// </para>
+    /// </summary>
+    /// <param name="query"></param>
+    /// <returns>
+    /// <para>"Result.Ok" in case of success.</para>
+    /// <para>"Result.ChannelDisconnected" if channel was dropped (the reply will be set to "null").</para>
+    /// <para>"Result.ChannelNodata" if the channel is still alive, but its buffer is empty (the reply will be set to "null").</para>
+    /// </returns>
+    public abstract Result TryRecv(out Query? query);
+}
+
+// z_owned_ring_handler_query_t
+public sealed class ChannelQueryRing : ChannelQuery
+{
+    internal ChannelQueryRing()
+    {
+        ChannelType = ChannelType.Ring;
+        var pOwnedRingHandlerQuery = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedRingHandlerQuery>());
+        ZenohC.z_internal_ring_handler_query_null(pOwnedRingHandlerQuery);
+        Handle = pOwnedRingHandlerQuery;
+    }
+
+    private ChannelQueryRing(ChannelQueryRing other)
+    {
+        throw new InvalidOperationException();
+    }
+
+    public override void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    ~ChannelQueryRing() => Dispose(false);
+
+    private void Dispose(bool disposing)
+    {
+        if (Handle == nint.Zero) return;
+
+        ZenohC.z_ring_handler_query_drop(Handle);
+        Marshal.FreeHGlobal(Handle);
+        Handle = nint.Zero;
+    }
+
+    public override Result Recv(out Query? query)
+    {
+        CheckDisposed();
+
+        query = new Query();
+        var pLoanedRingHandlerQuery = ZenohC.z_ring_handler_query_loan(Handle);
+        var r = ZenohC.z_ring_handler_query_recv(pLoanedRingHandlerQuery, query.Handle);
+
+        if (r == Result.Ok) return Result.Ok;
+
+        query.Dispose();
+        query = null;
+        return r;
+    }
+
+    public override Result TryRecv(out Query? query)
+    {
+        CheckDisposed();
+
+        query = new Query();
+        var pLoanedRingHandlerQuery = ZenohC.z_ring_handler_query_loan(Handle);
+        var r = ZenohC.z_ring_handler_query_try_recv(pLoanedRingHandlerQuery, query.Handle);
+
+        if (r == Result.Ok) return Result.Ok;
+        query.Dispose();
+        query = null;
+        return r;
+    }
+}
+
+// z_owned_fifo_handler_query_t
+public sealed class ChannelQueryFifo : ChannelQuery
+{
+    internal ChannelQueryFifo()
+    {
+        ChannelType = ChannelType.Fifo;
+        var pOwnedFifoHandlerQuery = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedFifoHandlerQuery>());
+        ZenohC.z_internal_fifo_handler_query_null(pOwnedFifoHandlerQuery);
+        Handle = pOwnedFifoHandlerQuery;
+    }
+
+    private ChannelQueryFifo(ChannelQueryFifo other)
+    {
+        throw new InvalidOperationException();
+    }
+
+    public override void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    ~ChannelQueryFifo() => Dispose(false);
+
+    private void Dispose(bool disposing)
+    {
+        if (Handle == nint.Zero) return;
+
+        ZenohC.z_fifo_handler_query_drop(Handle);
+        Marshal.FreeHGlobal(Handle);
+        Handle = nint.Zero;
+    }
+
+    public override Result Recv(out Query? query)
+    {
+        CheckDisposed();
+
+        query = new Query();
+        var pLoanedFifoHandlerQuery = ZenohC.z_fifo_handler_query_loan(Handle);
+        var r = ZenohC.z_fifo_handler_query_recv(pLoanedFifoHandlerQuery, query.Handle);
+
+        if (r == Result.Ok) return Result.Ok;
+
+        query.Dispose();
+        query = null;
+        return r;
+    }
+
+    public override Result TryRecv(out Query? query)
+    {
+        query = new Query();
+        var pLoanedFifoHandlerQuery = ZenohC.z_fifo_handler_query_loan(Handle);
+        var r = ZenohC.z_fifo_handler_query_try_recv(pLoanedFifoHandlerQuery, query.Handle);
+
+        if (r == Result.Ok) return Result.Ok;
+
+        query.Dispose();
+        query = null;
         return r;
     }
 }

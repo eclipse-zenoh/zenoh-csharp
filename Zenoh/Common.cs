@@ -1,6 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 
 namespace Zenoh;
 
@@ -222,6 +223,7 @@ public sealed class ZBytes : Loanable
 
     private void Dispose(bool disposing)
     {
+        Console.WriteLine($"ZBytes Disopse({disposing})");
         if (Handle == nint.Zero) return;
 
         if (Owned)
@@ -237,11 +239,6 @@ public sealed class ZBytes : Loanable
     internal static ZBytes CreateLoaned(nint handle)
     {
         return new ZBytes(handle, false);
-    }
-
-    internal static ZBytes CreateOwned()
-    {
-        return new ZBytes();
     }
 
     public override void ToOwned()
@@ -288,6 +285,21 @@ public sealed class ZBytes : Loanable
     {
         ZenohC.z_bytes_drop(handle);
         Marshal.FreeHGlobal(handle);
+    }
+
+    /// <summary>
+    /// Convert str to a utf-8 string and copy
+    /// </summary>
+    /// <param name="str"></param>
+    /// <returns></returns>
+    public static ZBytes FromString(string str)
+    {
+        var p = Marshal.StringToHGlobalAnsi(str);
+        var zBytes = new ZBytes();
+        var r = ZenohC.z_bytes_copy_from_str(zBytes.Handle, p);
+        Console.WriteLine($"z_bytes_copy_from_str result:{r}");
+        Marshal.FreeHGlobal(p);
+        return zBytes;
     }
 }
 
@@ -537,7 +549,7 @@ public sealed class Keyexpr : Loanable
         return new Keyexpr(handle,false);
     }
 
-    public static Keyexpr? Create(string keyexpr)
+    public static Keyexpr? FromString(string keyexpr)
     {
         var pOwnedKeyexpr = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedKeyexpr>());
         var pKeyexpr = Marshal.StringToHGlobalAnsi(keyexpr);
@@ -572,6 +584,7 @@ public sealed class Keyexpr : Loanable
 
     private void Dispose(bool disposing)
     {
+        Console.WriteLine($"Keyexpr Dispose: {disposing}");
         if (Handle == nint.Zero) return;
 
         if (Owned)

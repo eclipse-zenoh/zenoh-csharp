@@ -228,6 +228,17 @@ public sealed class Query : Loanable
         Owned = true;
     }
 
+    private Query(nint handle, bool owned)
+    {
+        Handle = handle;
+        Owned = owned;
+    }
+
+    internal static Query CreateLoaned(nint handle)
+    {
+        return new Query(handle, false);
+    }
+
     public override void Dispose()
     {
         Dispose(true);
@@ -467,5 +478,22 @@ public sealed class Queryable : IDisposable
     public void Undeclare()
     {
         Dispose();
+    }
+
+    // void (*call)(struct z_loaned_query_t *query, void *context)
+    internal static void CallbackClosureQueryCall(nint query, nint context)
+    {
+        var gcHandle = GCHandle.FromIntPtr(context);
+        if (gcHandle.Target is not Cb callback) return;
+        
+        var loanedQuery = Query.CreateLoaned(query);
+        callback(loanedQuery);
+    }
+
+    // void (*drop)(void *context)
+    internal static void CallbackClosureQueryDrop(nint context)
+    {
+        var gcHandle = GCHandle.FromIntPtr(context);
+        gcHandle.Free();
     }
 }

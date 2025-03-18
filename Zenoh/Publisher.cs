@@ -28,6 +28,11 @@ public sealed class PutOptions : IDisposable
         _isExpress = options.is_express;
     }
 
+    public PutOptions(EncodingId encodingId): this()
+    {
+        _encoding = new Encoding(encodingId);
+    }
+
     public PutOptions(PutOptions other)
     {
         _encoding = other._encoding is null ? null : new Encoding(other._encoding);
@@ -48,6 +53,7 @@ public sealed class PutOptions : IDisposable
 
     private void Dispose(bool disposing)
     {
+        Console.WriteLine($"PutOptions Disopse({disposing})");
         if (_encoding is not null)
         {
             if (disposing)
@@ -472,21 +478,18 @@ public sealed class Publisher : IDisposable
     // z_owned_publisher_t*
     internal nint Handle { get; private set; }
 
-    private Publisher()
+    internal Publisher()
     {
-        throw new InvalidOperationException();
-    }
-
-    internal Publisher(nint handle)
-    {
-        Handle = handle;
+        var pOwnedPublisher = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedPublisher>());
+        ZenohC.z_internal_publisher_null(pOwnedPublisher);
+        Handle = pOwnedPublisher;
     }
 
     private Publisher(Publisher other)
     {
         throw new InvalidOperationException();
     }
-
+    
     public void Dispose()
     {
         Dispose(true);

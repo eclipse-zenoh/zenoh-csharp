@@ -3,42 +3,6 @@ using System.Runtime.InteropServices;
 
 namespace Zenoh;
 
-public sealed class OpenOptions
-{
-    public byte Dummy { get; set; }
-
-    public OpenOptions()
-    {
-        var pOpenOptions = Marshal.AllocHGlobal(Marshal.SizeOf<ZOpenOptions>());
-        ZenohC.z_open_options_default(pOpenOptions);
-        var options = Marshal.PtrToStructure<ZOpenOptions>(pOpenOptions);
-        Marshal.FreeHGlobal(pOpenOptions);
-        Dummy = options.dummy;
-    }
-
-    public OpenOptions(OpenOptions other)
-    {
-        Dummy = other.Dummy;
-    }
-
-    internal nint AllocUnmanagedMem()
-    {
-        var options = new ZOpenOptions
-        {
-            dummy = Dummy,
-        };
-
-        var pOpenOptions = Marshal.AllocHGlobal(Marshal.SizeOf<ZOpenOptions>());
-        Marshal.StructureToPtr(options, pOpenOptions, false);
-        return pOpenOptions;
-    }
-
-    internal static void FreeUnmanagedMem(nint handle)
-    {
-        Marshal.FreeHGlobal(handle);
-    }
-}
-
 public sealed class Session : IDisposable
 {
     // z_owned_session*
@@ -69,6 +33,7 @@ public sealed class Session : IDisposable
 
     private void Dispose(bool disposing)
     {
+        Console.WriteLine($"Session Disopse({disposing})");
         if (Handle == nint.Zero) return;
 
         ZenohC.z_session_drop(Handle);
@@ -100,17 +65,15 @@ public sealed class Session : IDisposable
     /// <returns>
     /// ZResult.Ok in case of success
     /// </returns>
-    public static Result Open(Config config, OpenOptions openOptions, out Session? session)
+    public static Result Open(Config config, out Session? session)
     {
         config.CheckDisposed();
 
-        session = null;
         var pOwnedSession = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedSession>());
         ZenohC.z_internal_session_null(pOwnedSession);
         var configCopy = new Config(config);
-        var pOpenOptions = openOptions.AllocUnmanagedMem();
 
-        var r = ZenohC.z_open(pOwnedSession, configCopy.Handle, pOpenOptions);
+        var r = ZenohC.z_open(pOwnedSession, configCopy.Handle,nint.Zero);
         configCopy.Dispose();
 
         if (r == Result.Ok)
@@ -120,6 +83,7 @@ public sealed class Session : IDisposable
         else
         {
             Marshal.FreeHGlobal(pOwnedSession);
+            session = null;
         }
 
         return r;
@@ -156,28 +120,19 @@ public sealed class Session : IDisposable
     {
         CheckDisposed();
 
-        publisher = null;
-
         var pLoanedSession = ZenohC.z_session_loan(Handle);
-        var pOwnedPublisher = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedPublisher>());
         var pLoanedKeyexpr = keyexpr.LoanedPointer();
         var pPublisherOptions = options.AllocUnmanagedMemory();
+        publisher = new Publisher();
 
-        Publisher? o;
-        var r = ZenohC.z_declare_publisher(pLoanedSession, pOwnedPublisher, pLoanedKeyexpr, pPublisherOptions);
-        if (r == Result.Ok)
-        {
-            publisher = new Publisher(pOwnedPublisher);
-        }
-        else
-        {
-            ZenohC.z_publisher_drop(pOwnedPublisher);
-            Marshal.FreeHGlobal(pOwnedPublisher);
-            publisher = null;
-        }
+        var r = ZenohC.z_declare_publisher(pLoanedSession, publisher.Handle, pLoanedKeyexpr, pPublisherOptions);
 
         PublisherOptions.FreeUnmanagedMemory(pPublisherOptions);
 
+        if (r == Result.Ok) return Result.Ok;
+
+        publisher.Dispose();
+        publisher = null;
         return r;
     }
 
@@ -290,7 +245,7 @@ public sealed class Session : IDisposable
 
 
     /// <summary>
-    /// Constructs a Queryable for the given key expression.
+    /// Constructs a callback type Queryable for the given key expression.
     /// </summary>
     /// <param name="keyexpr"></param>
     /// <param name="options"></param>
@@ -303,7 +258,82 @@ public sealed class Session : IDisposable
         CheckDisposed();
         keyexpr.CheckDisposed();
 
-        // todo
+        var gcHandle = GCHandle.Alloc(callback);
+        var pOwnedClosureQuery = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedClosureQuery>());
+        ZenohC.z_closure_query(pOwnedClosureQuery, Queryable.CallbackClosureQueryCall,
+            Queryable.CallbackClosureQueryDrop,
+            GCHandle.ToIntPtr(gcHandle));
+
+        var pLoanedSession = ZenohC.z_session_loan(Handle);
+        var pLoanedKeyexpr = keyexpr.LoanedPointer();
+        var pOptions = options.AllocUnmanagedMem();
+        queryable = new Queryable();
+
+        var r = ZenohC.z_declare_queryable(pLoanedSession, queryable.Handle, pLoanedKeyexpr, pOwnedClosureQuery,
+            pOptions);
+
+        Marshal.FreeHGlobal(pOwnedClosureQuery);
+        QueryableOptions.FreeUnmanagedMem(pOptions);
+
+        if (r == Result.Ok) return Result.Ok;
+
+        queryable.Dispose();
+        queryable = null;
+        return r;
+    }
+
+    /// <summary>
+    /// Constructs a Queryable for the given key expression.
+    /// </summary>
+    /// <param name="keyexpr"></param>
+    /// <param name="options"></param>
+    /// <param name="channelType"></param>
+    /// <param name="channelSize"></param>
+    /// <param name="handler"></param>
+    /// <returns></returns>
+    public Result DeclareQueryable(Keyexpr keyexpr, QueryableOptions options, ChannelType channelType, uint channelSize,
+        out (Queryable, ChannelQuery)? handler)
+    {
+        CheckDisposed();
+        keyexpr.CheckDisposed();
+
+        var pOwnedClosureQuery = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedClosureQuery>());
+
+        ChannelQuery channel;
+        switch (channelType)
+        {
+            case ChannelType.Ring:
+                channel = new ChannelQueryRing();
+                ZenohC.z_ring_channel_query_new(pOwnedClosureQuery, channel.Handle, channelSize);
+                break;
+            case ChannelType.Fifo:
+                channel = new ChannelQueryFifo();
+                ZenohC.z_fifo_channel_query_new(pOwnedClosureQuery, channel.Handle, channelSize);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(channelType), channelType, null);
+        }
+
+        var pOptions = options.AllocUnmanagedMem();
+        var pLoanedSession = ZenohC.z_session_loan(Handle);
+        var pLoanedKeyexpr = keyexpr.LoanedPointer();
+        var queryable = new Queryable();
+
+        var r = ZenohC.z_declare_queryable(pLoanedSession, queryable.Handle, pLoanedKeyexpr, pOwnedClosureQuery,
+            pOptions);
+        QueryableOptions.FreeUnmanagedMem(pOptions);
+        Marshal.FreeHGlobal(pOwnedClosureQuery);
+
+        if (r == Result.Ok)
+        {
+            handler = (queryable, channel);
+            return Result.Ok;
+        }
+        
+        queryable.Dispose();
+        channel.Dispose();
+        handler = null;
+        return r;
     }
 
     /// <summary>
@@ -321,21 +351,33 @@ public sealed class Session : IDisposable
     /// <returns></returns>
     public Result Put(Keyexpr keyexpr, ZBytes payload, PutOptions options)
     {
+        Console.WriteLine("put 1");
         CheckDisposed();
+
+        Console.WriteLine("put 2");
         keyexpr.CheckDisposed();
+
+        Console.WriteLine("put 3");
         payload.CheckDisposed();
+
+        Console.WriteLine("put 4");
         payload.ToOwned();
 
         var pLoanedSession = ZenohC.z_session_loan(Handle);
         var pLoanedKeyexpr = keyexpr.LoanedPointer();
-        var pMovedBytes = payload.Handle;
+        Console.WriteLine("put 5");
         var pPutOptions = options.AllocUnmanagedMemory();
 
-        var r = ZenohC.z_put(pLoanedSession, pLoanedKeyexpr, pMovedBytes, pPutOptions);
+        Console.WriteLine("put 6");
+        var r = ZenohC.z_put(pLoanedSession, pLoanedKeyexpr, payload.Handle, pPutOptions);
 
+        Console.WriteLine("put 7");
         PutOptions.FreeUnmanagedMemory(pPutOptions);
+
+        Console.WriteLine("put 8");
         payload.Dispose();
 
+        Console.WriteLine("put 9");
         return r;
     }
 

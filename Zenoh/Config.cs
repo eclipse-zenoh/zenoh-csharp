@@ -61,6 +61,7 @@ public sealed class Config : IDisposable
         var r = ZenohC.zc_config_from_file(pOwnedConfig, pPath);
         Marshal.FreeHGlobal(pPath);
         if (r == Result.Ok) return new Config(pOwnedConfig);
+        
         Marshal.FreeHGlobal(pOwnedConfig);
         return null;
     }
@@ -88,6 +89,7 @@ public sealed class Config : IDisposable
 
     private void Dispose(bool disposing)
     {
+        Console.WriteLine($"Config Disopse({disposing})");
         if (Handle == nint.Zero) return;
 
         ZenohC.z_config_drop(Handle);
