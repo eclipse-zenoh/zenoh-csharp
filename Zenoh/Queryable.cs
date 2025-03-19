@@ -206,6 +206,14 @@ public sealed class QueryReplyOptions : IDisposable
     }
 }
 
+public sealed class QueryReplyErrOptions : IDisposable
+{
+    public void Dispose()
+    {
+        throw new NotImplementedException();
+    }
+}
+
 // z_owned_query_t
 public sealed class Query : Loanable
 {
@@ -389,12 +397,17 @@ public sealed class Query : Loanable
 
         return r;
     }
+
+    public Result ReplyErr(ZBytes payload, QueryReplyErrOptions options)
+    {
+        // todo
+    }
 }
 
 
-public sealed class QueryableOptions 
+public sealed class QueryableOptions
 {
-    public bool Complete { get; set; }
+    public bool Complete;
 
     public QueryableOptions()
     {

@@ -408,4 +408,38 @@ public sealed class Reply : IDisposable
         var pLoanedReply = ZenohC.z_reply_loan(Handle);
         return ZenohC.z_reply_is_ok(pLoanedReply);
     }
+
+    /// <summary>
+    /// Yields the contents of the reply by asserting it indicates a failure.
+    /// </summary>
+    /// <returns>
+    /// Return ReplyErr is loaned.
+    /// return null if reply does not contain a error  (i. e. if `IsOk()` returns `true`).
+    /// </returns>
+    public ReplyErr? AsErr()
+    {
+        CheckDisposed();
+        
+        var pLoanedReply = ZenohC.z_reply_loan(Handle);
+        var pLoanedReplyErr = ZenohC.z_reply_err(pLoanedReply);
+        
+        return pLoanedReplyErr == nint.Zero ? null : ReplyErr.CreateLoaned(pLoanedReplyErr);
+    }
+
+    /// <summary>
+    /// Yields the contents of the reply by asserting it indicates a success.
+    /// </summary>
+    /// <returns>
+    /// Return Sample is loaned,
+    /// return null if reply does not contain a sample (i. e. if `IsOk()` returns `false`).
+    /// </returns>
+    public Sample? AsOk()
+    {
+        CheckDisposed();
+        
+        var pLoanedReply = ZenohC.z_reply_loan(Handle);
+        var pLoanedSample = ZenohC.z_reply_ok(pLoanedReply);
+        
+        return pLoanedSample == nint.Zero ? null: Sample.CreateLoaned(pLoanedSample);
+    }
 }

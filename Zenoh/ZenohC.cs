@@ -1515,9 +1515,14 @@ internal static unsafe class ZenohC
         ExactSpelling = true)]
     internal static extern Result z_bytes_to_slice(ZLoanedBytes* bytes, ZOwnedSlice* dst);
 
+    /// z_result_t
+    /// z_bytes_to_string(
+    ///     const struct z_loaned_bytes_t *this_,
+    ///     struct z_owned_string_t *dst
+    /// )
     [DllImport(DllName, EntryPoint = "z_bytes_to_string", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern Result z_bytes_to_string(ZLoanedBytes* bytes, ZOwnedString* dst);
+    internal static extern Result z_bytes_to_string(nint bytes, nint dst);
 
     [DllImport(DllName, EntryPoint = "z_bytes_writer_append", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]

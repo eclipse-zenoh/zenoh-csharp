@@ -8,6 +8,7 @@
         <TargetFramework>net8.0</TargetFramework>
         <Configurations>Debug;Release</Configurations>
         <Platforms>ARM64;x64</Platforms>
+        <Nullable>enable</Nullable>
     </PropertyGroup>
     <PropertyGroup Condition=" '$(Platform)' == 'ARM' ">
         <DefineConstants>TRACE;PLATFORM_ARM</DefineConstants>

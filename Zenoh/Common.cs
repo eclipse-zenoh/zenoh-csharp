@@ -312,6 +312,19 @@ public sealed class ZBytes : Loanable
 
         return zBytes;
     }
+
+    public ZString? ToZString()
+    {
+        CheckDisposed();
+        
+        var zString = new ZString();
+        var pLoanedBytes = LoanedPointer();
+        var r = ZenohC.z_bytes_to_string(pLoanedBytes,zString.Handle);
+        if(r == Result.Ok) return zString;
+        
+        zString.Dispose();
+        return null;
+    }
 }
 
 // z_owned_slice_t
