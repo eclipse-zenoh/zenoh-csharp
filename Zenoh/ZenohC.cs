@@ -1087,19 +1087,6 @@ internal struct ZScoutOptions
     internal What What;
 }
 
-// public string PrefixToString()
-// {
-//     return prefix.ToString();
-// }
-//
-// public static ZEncoding New(EncodingPrefix prefix)
-// {
-//     return FnZEncoding(prefix, IntPtr.Zero);
-// }
-//
-// [DllImport(ZenohC.DllName, EntryPoint = "z_encoding", CallingConvention = CallingConvention.Cdecl)]
-// internal static extern ZEncoding FnZEncoding(EncodingPrefix prefix, IntPtr suffix);
-
 // zenoh_commons.h
 // z_publisher_options_t 
 [StructLayout(LayoutKind.Sequential)]
@@ -2630,9 +2617,14 @@ internal static unsafe class ZenohC
         ExactSpelling = true)]
     internal static extern ZId z_hello_zid(ZLoanedHello* hello);
 
+    /// void
+    /// z_id_to_string(
+    ///     const struct z_id_t *zid,
+    ///     struct z_owned_string_t *dst
+    /// )
     [DllImport(DllName, EntryPoint = "z_id_to_string", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern void z_id_to_string(ZId* id, ZOwnedString* dst);
+    internal static extern void z_id_to_string(nint id, nint dst);
 
     [DllImport(DllName, EntryPoint = "z_info_peers_zid", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
@@ -3781,7 +3773,7 @@ internal static unsafe class ZenohC
     /// )
     [DllImport(DllName, EntryPoint = "z_ring_channel_query_new", CallingConvention = CallingConvention.Cdecl,
         ExactSpelling = true)]
-    internal static extern void z_ring_channel_query_new( nint callback, nint handler, nuint capacity );
+    internal static extern void z_ring_channel_query_new(nint callback, nint handler, nuint capacity);
 
     /// void
     /// z_ring_channel_reply_new(

@@ -1,7 +1,6 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Threading;
 
 namespace Zenoh;
 
@@ -223,7 +222,6 @@ public sealed class ZBytes : Loanable
 
     private void Dispose(bool disposing)
     {
-        Console.WriteLine($"ZBytes Disopse({disposing})");
         if (Handle == nint.Zero) return;
 
         if (Owned)
@@ -288,17 +286,30 @@ public sealed class ZBytes : Loanable
     }
 
     /// <summary>
-    /// Convert str to a utf-8 string and copy
+    /// Convert str to a utf-8 string and copy.
     /// </summary>
     /// <param name="str"></param>
     /// <returns></returns>
     public static ZBytes FromString(string str)
     {
-        var p = Marshal.StringToHGlobalAnsi(str);
+        var pStr = Marshal.StringToHGlobalAnsi(str);
         var zBytes = new ZBytes();
-        var r = ZenohC.z_bytes_copy_from_str(zBytes.Handle, p);
-        Console.WriteLine($"z_bytes_copy_from_str result:{r}");
-        Marshal.FreeHGlobal(p);
+        ZenohC.z_bytes_copy_from_str(zBytes.Handle, pStr);
+        Marshal.FreeHGlobal(pStr);
+        return zBytes;
+    }
+
+    public static ZBytes FromBytes(byte[] bytes)
+    {
+        var zBytes = new ZBytes();
+        unsafe
+        {
+            fixed (void* bytePtr = bytes)
+            {
+                ZenohC.z_bytes_copy_from_buf(zBytes.Handle, (nint)bytePtr, (nuint)bytes.Length);
+            }
+        }
+
         return zBytes;
     }
 }
@@ -317,7 +328,7 @@ public sealed class ZSlice : Loanable
     public ZSlice(ZSlice other)
     {
         other.CheckDisposed();
-        
+
         var pOwnedSlice = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedSlice>());
         var pLoanedSlice = other.LoanedPointer();
         ZenohC.z_slice_clone(pOwnedSlice, pLoanedSlice);
@@ -342,19 +353,19 @@ public sealed class ZSlice : Loanable
             ZenohC.z_slice_drop(Handle);
             Marshal.FreeHGlobal(Handle);
         }
-        
+
         Handle = nint.Zero;
     }
 
     internal override nint LoanedPointer()
     {
-        return Owned? ZenohC.z_slice_loan(Handle) : Handle;
+        return Owned ? ZenohC.z_slice_loan(Handle) : Handle;
     }
 
     public override void ToOwned()
     {
         if (Owned) return;
-        
+
         var pOwnedSlice = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedSlice>());
         var pLoanedSlice = LoanedPointer();
         ZenohC.z_slice_clone(pOwnedSlice, pLoanedSlice);
@@ -546,7 +557,7 @@ public sealed class Keyexpr : Loanable
     // 'handle' z_loaned_keyexpr*
     internal static Keyexpr CreateLoaned(nint handle)
     {
-        return new Keyexpr(handle,false);
+        return new Keyexpr(handle, false);
     }
 
     public static Keyexpr? FromString(string keyexpr)
@@ -573,7 +584,7 @@ public sealed class Keyexpr : Loanable
         Marshal.FreeHGlobal(pOwnedKeyexpr);
         return null;
     }
-    
+
     public override void Dispose()
     {
         Dispose(true);
@@ -584,7 +595,6 @@ public sealed class Keyexpr : Loanable
 
     private void Dispose(bool disposing)
     {
-        Console.WriteLine($"Keyexpr Dispose: {disposing}");
         if (Handle == nint.Zero) return;
 
         if (Owned)
@@ -609,7 +619,7 @@ public sealed class Keyexpr : Loanable
 
     internal override nint LoanedPointer()
     {
-        return Owned? ZenohC.z_keyexpr_loan(Handle) : Handle;
+        return Owned ? ZenohC.z_keyexpr_loan(Handle) : Handle;
     }
 
     /// <summary>

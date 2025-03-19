@@ -33,7 +33,6 @@ public sealed class Session : IDisposable
 
     private void Dispose(bool disposing)
     {
-        Console.WriteLine($"Session Disopse({disposing})");
         if (Handle == nint.Zero) return;
 
         ZenohC.z_session_drop(Handle);
@@ -73,7 +72,7 @@ public sealed class Session : IDisposable
         ZenohC.z_internal_session_null(pOwnedSession);
         var configCopy = new Config(config);
 
-        var r = ZenohC.z_open(pOwnedSession, configCopy.Handle,nint.Zero);
+        var r = ZenohC.z_open(pOwnedSession, configCopy.Handle, nint.Zero);
         configCopy.Dispose();
 
         if (r == Result.Ok)
@@ -329,7 +328,7 @@ public sealed class Session : IDisposable
             handler = (queryable, channel);
             return Result.Ok;
         }
-        
+
         queryable.Dispose();
         channel.Dispose();
         handler = null;
@@ -351,33 +350,19 @@ public sealed class Session : IDisposable
     /// <returns></returns>
     public Result Put(Keyexpr keyexpr, ZBytes payload, PutOptions options)
     {
-        Console.WriteLine("put 1");
         CheckDisposed();
-
-        Console.WriteLine("put 2");
         keyexpr.CheckDisposed();
-
-        Console.WriteLine("put 3");
         payload.CheckDisposed();
-
-        Console.WriteLine("put 4");
         payload.ToOwned();
 
         var pLoanedSession = ZenohC.z_session_loan(Handle);
         var pLoanedKeyexpr = keyexpr.LoanedPointer();
-        Console.WriteLine("put 5");
         var pPutOptions = options.AllocUnmanagedMemory();
 
-        Console.WriteLine("put 6");
         var r = ZenohC.z_put(pLoanedSession, pLoanedKeyexpr, payload.Handle, pPutOptions);
 
-        Console.WriteLine("put 7");
         PutOptions.FreeUnmanagedMemory(pPutOptions);
-
-        Console.WriteLine("put 8");
         payload.Dispose();
-
-        Console.WriteLine("put 9");
         return r;
     }
 

@@ -21,7 +21,7 @@ public sealed class Config : IDisposable
     public Config(Config other)
     {
         other.CheckDisposed();
-        
+
         var pOwnedConfig = Marshal.AllocHGlobal(Marshal.SizeOf<ZOwnedConfig>());
         ZenohC.z_internal_config_null(pOwnedConfig);
 
@@ -61,7 +61,7 @@ public sealed class Config : IDisposable
         var r = ZenohC.zc_config_from_file(pOwnedConfig, pPath);
         Marshal.FreeHGlobal(pPath);
         if (r == Result.Ok) return new Config(pOwnedConfig);
-        
+
         Marshal.FreeHGlobal(pOwnedConfig);
         return null;
     }
@@ -89,7 +89,6 @@ public sealed class Config : IDisposable
 
     private void Dispose(bool disposing)
     {
-        Console.WriteLine($"Config Disopse({disposing})");
         if (Handle == nint.Zero) return;
 
         ZenohC.z_config_drop(Handle);
@@ -108,7 +107,7 @@ public sealed class Config : IDisposable
     public ZString? ToZString()
     {
         CheckDisposed();
-        
+
         var zString = new ZString();
         var pLoanedConfig = ZenohC.z_config_loan(Handle);
         var r = ZenohC.zc_config_to_string(pLoanedConfig, zString.Handle);
