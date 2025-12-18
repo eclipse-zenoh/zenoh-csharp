@@ -1,45 +1,20 @@
-![zenoh banner](./zenoh-dragon.png)
+# Zenoh C# 
 
-[![NuGet](https://img.shields.io/nuget/v/Zenoh.svg)](https://www.nuget.org/packages/Zenoh)
-[![Gitter](https://badges.gitter.im/atolab/zenoh.svg)](https://gitter.im/atolab/zenoh?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
-[![License](https://img.shields.io/badge/License-EPL%202.0-blue)](https://choosealicense.com/licenses/epl-2.0/)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+This repository is reserved for the upcoming **Zenoh C#** project.
 
-# Eclipse zenoh C# API
+Zenoh C# is planned to provide official C# bindings for the Zenoh protocol, enabling high-performance data exchange for distributed, embedded, and edge applications.
 
-[Eclipse zenoh](http://zenoh.io) is an extremely efficient and fault-tolerant [Named Data Networking](http://named-data.net) (NDN) protocol 
-that is able to scale down to extremely constrainded devices and networks.
+## Status
 
-The C# API is for pure clients, in other terms does not support peer-to-peer communication, can be easily tested against a zenoh router running in a Docker container (see https://github.com/eclipse-zenoh/zenoh#how-to-test-it).
+🚧 **Work planned**  
+Zenoh C# is currently on the project roadmap. Development will begin in a future milestone, and updates will appear here as the project progresses.
 
--------------------------------
-## How to install it
+## Contact
 
-Requirements:
- - The [zenoh-c](https://github.com/eclipse-zenoh/zenoh-c) library must be installed on your host
+For roadmap details, collaboration inquiries, or early discussions, please contact:
 
-The Eclipse zenoh C# library is available on NuGet: 
+📧 **contact@zettascale.tech**
 
-### Supported .NET Standards
+---
 
-The library is configured to target the **.NET Standard 2.0** at minimum.
-
-
--------------------------------
-## How to build it
-
-Requirements:
- * The [zenoh-c](https://github.com/eclipse-zenoh/zenoh-c) library must be installed on your host
- * A .NET environment
-
-Simply run `dotnet build  Zenoh/`.
-
-
--------------------------------
-## Running the Examples
-
-The examples are configured to target **net5.0**.
-
-The simplest way to run some of the examples is to get a Docker image of the **zenoh** network router (see https://github.com/eclipse-zenoh/zenoh#how-to-test-it) and then to run the examples on your machine.
-
-Then, run the zenoh-csharp examples following the instructions in [examples/Zenoh.Net/README.md](https://github.com/eclipse-zenoh/zenoh-csharp/blob/master/examples/Zenoh.Net/README.md)
+Thank you for your interest in Zenoh and Zenoh C#!
